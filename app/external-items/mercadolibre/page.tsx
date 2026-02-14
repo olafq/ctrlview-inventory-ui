@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 interface ExternalItem {
   id: number;
   product_id: number;
+  product_name?: string;
   channel_id: number;
   external_item_id: string;
   external_sku?: string;
@@ -13,6 +14,7 @@ interface ExternalItem {
   status?: string;
   created_at: string;
 }
+
 
 export default function MercadoLibreExternalItems() {
   const [items, setItems] = useState<ExternalItem[]>([]);
