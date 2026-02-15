@@ -9,77 +9,179 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const [openExternal, setOpenExternal] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [channelsOpen, setChannelsOpen] = useState(false);
+  const [operationsOpen, setOperationsOpen] = useState(false);
+  const [analyticsOpen, setAnalyticsOpen] = useState(false);
 
   return (
     <html lang="es">
       <body className="h-screen overflow-hidden">
         <div className="flex h-full">
 
+          {/* Overlay mobile */}
+          {open && (
+            <div
+              className="fixed inset-0 bg-black/40 z-40 md:hidden"
+              onClick={() => setOpen(false)}
+            />
+          )}
+
           {/* SIDEBAR */}
-          <aside className="w-64 bg-gray-900 text-white flex flex-col">
+          <aside
+            className={`
+              fixed md:relative z-50
+              w-64 bg-gray-900 text-white flex flex-col
+              h-full transition-transform duration-300
+              ${open ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
+            `}
+          >
             <div className="p-4 text-xl font-bold border-b border-gray-700">
               CtrlView
             </div>
 
-            <nav className="flex-1 p-4 space-y-2">
+            <nav className="flex-1 p-4 space-y-1 overflow-auto">
 
-              <button className="w-full text-left px-3 py-2 rounded hover:bg-gray-800">
-                📊 Dashboard
-              </button>
-
-              <button className="w-full text-left px-3 py-2 rounded hover:bg-gray-800">
-                📦 Products
-              </button>
-
-              {/* 🔽 External Items Dropdown */}
-              <div>
-                <button
-                  onClick={() => setOpenExternal(!openExternal)}
-                  className="w-full text-left px-3 py-2 rounded hover:bg-gray-800 flex justify-between items-center"
-                >
-                  🔗 External Items
-                  <span className="text-xs">
-                    {openExternal ? "▾" : "▸"}
-                  </span>
-                </button>
-
-                {openExternal && (
-                  <div className="ml-4 mt-1 space-y-1">
-                    <Link href="/external-items/mercadolibre">
-                      <div className="px-3 py-2 rounded hover:bg-gray-800 cursor-pointer text-sm">
-                        Mercado Libre
-                      </div>
-                    </Link>
-                  </div>
-                )}
-              </div>
-
-              <button className="w-full text-left px-3 py-2 rounded hover:bg-gray-800">
-                ⬇️ Imports
-              </button>
-
-              <Link href="/settings">
-                <div className="w-full text-left px-3 py-2 rounded hover:bg-gray-800 cursor-pointer">
-                  ⚙️ Settings
+              <Link href="/">
+                <div className="px-3 py-2 rounded hover:bg-gray-800 cursor-pointer">
+                  📊 Dashboard
                 </div>
               </Link>
 
+              {/* OPERATIONS */}
+              <div
+                onClick={() => setOperationsOpen(!operationsOpen)}
+                className="px-3 py-2 rounded hover:bg-gray-800 cursor-pointer flex justify-between"
+              >
+                ⚙️ Operations
+                <span>{operationsOpen ? "▾" : "▸"}</span>
+              </div>
+
+              {operationsOpen && (
+                <div className="ml-4 space-y-1 text-sm text-gray-300">
+                  <Link href="/operations/orders">
+                    <div className="px-3 py-2 hover:bg-gray-800 rounded cursor-pointer">
+                      Orders
+                    </div>
+                  </Link>
+                  <Link href="/operations/returns">
+                    <div className="px-3 py-2 hover:bg-gray-800 rounded cursor-pointer">
+                      Returns
+                    </div>
+                  </Link>
+                  <Link href="/operations/messages">
+                    <div className="px-3 py-2 hover:bg-gray-800 rounded cursor-pointer">
+                      Messages
+                    </div>
+                  </Link>
+                </div>
+              )}
+
+              {/* INVENTORY */}
+              <Link href="/inventory">
+                <div className="px-3 py-2 rounded hover:bg-gray-800 cursor-pointer">
+                  📦 Inventory
+                </div>
+              </Link>
+
+              {/* CHANNELS */}
+              <div
+                onClick={() => setChannelsOpen(!channelsOpen)}
+                className="px-3 py-2 rounded hover:bg-gray-800 cursor-pointer flex justify-between"
+              >
+                🔗 Channels
+                <span>{channelsOpen ? "▾" : "▸"}</span>
+              </div>
+
+              {channelsOpen && (
+                <div className="ml-4 space-y-1 text-sm text-gray-300">
+                  <Link href="/channels/mercadolibre">
+                    <div className="px-3 py-2 hover:bg-gray-800 rounded cursor-pointer">
+                      Mercado Libre
+                    </div>
+                  </Link>
+                  <Link href="/channels/shopify">
+                    <div className="px-3 py-2 hover:bg-gray-800 rounded cursor-pointer">
+                      Shopify
+                    </div>
+                  </Link>
+                  <Link href="/channels/tiendanube">
+                    <div className="px-3 py-2 hover:bg-gray-800 rounded cursor-pointer">
+                      Tienda Nube
+                    </div>
+                  </Link>
+                  <Link href="/channels/amazon">
+                    <div className="px-3 py-2 hover:bg-gray-800 rounded cursor-pointer">
+                      Amazon
+                    </div>
+                  </Link>
+                </div>
+              )}
+
+              {/* ANALYTICS */}
+              <div
+                onClick={() => setAnalyticsOpen(!analyticsOpen)}
+                className="px-3 py-2 rounded hover:bg-gray-800 cursor-pointer flex justify-between"
+              >
+                📈 Analytics
+                <span>{analyticsOpen ? "▾" : "▸"}</span>
+              </div>
+
+              {analyticsOpen && (
+                <div className="ml-4 space-y-1 text-sm text-gray-300">
+                  <Link href="/analytics/sales">
+                    <div className="px-3 py-2 hover:bg-gray-800 rounded cursor-pointer">
+                      Sales
+                    </div>
+                  </Link>
+                  <Link href="/analytics/finance">
+                    <div className="px-3 py-2 hover:bg-gray-800 rounded cursor-pointer">
+                      Finance
+                    </div>
+                  </Link>
+                  <Link href="/analytics/performance">
+                    <div className="px-3 py-2 hover:bg-gray-800 rounded cursor-pointer">
+                      Performance
+                    </div>
+                  </Link>
+                </div>
+              )}
+
+              <Link href="/automation">
+                <div className="px-3 py-2 rounded hover:bg-gray-800 cursor-pointer">
+                  🤖 Automation
+                </div>
+              </Link>
+
+              <Link href="/settings">
+                <div className="px-3 py-2 rounded hover:bg-gray-800 cursor-pointer">
+                  ⚙️ Settings
+                </div>
+              </Link>
             </nav>
           </aside>
 
-          {/* MAIN CONTENT */}
-          <div className="flex-1 flex flex-col bg-gray-100">
+          {/* MAIN */}
+          <div className="flex-1 flex flex-col bg-gray-100 w-full">
 
             {/* HEADER */}
-            <header className="h-14 bg-white border-b flex items-center px-6">
+            <header className="h-14 bg-white border-b flex items-center px-4 md:px-6 justify-between">
+
+              {/* Mobile menu button */}
+              <button
+                className="md:hidden text-gray-700"
+                onClick={() => setOpen(true)}
+              >
+                ☰
+              </button>
+
               <span className="text-sm text-gray-600">
                 Inventory Management
               </span>
             </header>
 
-            {/* PAGE CONTENT */}
-            <main className="flex-1 p-6 overflow-auto">
+            {/* CONTENT */}
+            <main className="flex-1 p-4 md:p-6 overflow-auto">
               {children}
             </main>
           </div>
