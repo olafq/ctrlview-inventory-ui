@@ -11,34 +11,21 @@ export default function OrdersPage() {
 
   const channelId = 1;
 
-  // =========================
-  // Fetch Sales desde DB
-  // =========================
   const fetchOrders = async () => {
     try {
-        const res = await fetch(
+      const res = await fetch(
         `${API_BASE}/integrations/mercadolibre/orders?channel_id=${channelId}`
-        );
-
-        const data = await res.json();
-
-        if (Array.isArray(data)) {
-        setOrders(data);
-        } else {
-        setOrders([]);
-        }
+      );
+      const data = await res.json();
+      setOrders(data || []);
     } catch (err) {
-        console.error("Error loading orders:", err);
-        setOrders([]);
+      console.error("Error loading orders:", err);
+      setOrders([]);
     }
   };
 
-  // =========================
-  // Sync Orders
-  // =========================
   const handleSync = async () => {
     setLoading(true);
-
     try {
       await fetch(
         `${API_BASE}/integrations/mercadolibre/orders/sync?channel_id=${channelId}`,
@@ -46,18 +33,44 @@ export default function OrdersPage() {
       );
 
       setLastSync(new Date().toLocaleString());
-
       await fetchOrders();
     } catch (err) {
       console.error("Sync failed:", err);
     }
-
     setLoading(false);
   };
 
   useEffect(() => {
     fetchOrders();
   }, []);
+
+  // =========================
+  // Status Badge Colors
+  // =========================
+  const getStatusStyle = (status: string) => {
+    switch (status) {
+      case "paid":
+        return "bg-green-100 text-green-700";
+      case "cancelled":
+      case "refunded":
+        return "bg-red-100 text-red-700";
+      case "pending":
+        return "bg-yellow-100 text-yellow-700";
+      default:
+        return "bg-gray-100 text-gray-600";
+    }
+  };
+
+  const getChannelStyle = (channel: string) => {
+    switch (channel) {
+      case "mercadolibre":
+        return "bg-blue-100 text-blue-700";
+      case "shopify":
+        return "bg-purple-100 text-purple-700";
+      default:
+        return "bg-gray-100 text-gray-600";
+    }
+  };
 
   return (
     <div className="p-8">
@@ -80,36 +93,80 @@ export default function OrdersPage() {
         </button>
       </div>
 
-      <div className="bg-white rounded shadow overflow-x-auto">
+      <div className="bg-white rounded-lg shadow overflow-x-auto">
         <table className="w-full text-left">
-          <thead className="bg-gray-100 border-b">
+          <thead className="bg-gray-100 border-b text-sm text-gray-600 uppercase">
             <tr>
-              <th className="p-3">Order ID</th>
-              <th className="p-3">Status</th>
-              <th className="p-3">Total</th>
-              <th className="p-3">Currency</th>
-              <th className="p-3">Last Updated</th>
+              <th className="p-4">Order ID</th>
+              <th className="p-4">Internal ID</th>
+              <th className="p-4">Channel</th>
+              <th className="p-4">Status</th>
+              <th className="p-4">Total</th>
+              <th className="p-4">Currency</th>
+              <th className="p-4">Last Updated</th>
+              <th className="p-4">Created</th>
             </tr>
           </thead>
 
           <tbody>
             {orders.length === 0 && (
               <tr>
-                <td colSpan={5} className="p-4 text-center text-gray-500">
+                <td colSpan={8} className="p-6 text-center text-gray-500">
                   No orders found
                 </td>
               </tr>
             )}
 
             {orders.map((o: any) => (
-              <tr key={o.id} className="border-b hover:bg-gray-50">
-                <td className="p-3">{o.id}</td>
-                <td className="p-3 capitalize">{o.status}</td>
-                <td className="p-3">{o.total_amount}</td>
-                <td className="p-3">{o.currency_id}</td>
-                <td className="p-3">
-                  {o.date_last_updated
-                    ? new Date(o.date_last_updated).toLocaleString()
+              <tr
+                key={o.id}
+                className="border-b hover:bg-gray-50 transition"
+              >
+                <td className="p-4 font-medium">
+                  {o.external_order_id}
+                </td>
+
+                <td className="p-4 text-gray-500">
+                  {o.id}
+                </td>
+
+                <td className="p-4">
+                  <span
+                    className={`px-3 py-1 rounded-full text-xs font-medium ${getChannelStyle(
+                      "mercadolibre"
+                    )}`}
+                  >
+                    Mercado Libre
+                  </span>
+                </td>
+
+                <td className="p-4">
+                  <span
+                    className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusStyle(
+                      o.status
+                    )}`}
+                  >
+                    {o.status}
+                  </span>
+                </td>
+
+                <td className="p-4 font-semibold">
+                  ${o.total_amount}
+                </td>
+
+                <td className="p-4">
+                  {o.currency}
+                </td>
+
+                <td className="p-4 text-gray-500">
+                  {o.ml_last_updated
+                    ? new Date(o.ml_last_updated).toLocaleString()
+                    : "-"}
+                </td>
+
+                <td className="p-4 text-gray-500">
+                  {o.created_at
+                    ? new Date(o.created_at).toLocaleString()
                     : "-"}
                 </td>
               </tr>
