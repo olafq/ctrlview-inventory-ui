@@ -23,28 +23,36 @@ export default function OrdersPage() {
   // Fetch Orders
   // =========================
   const fetchOrders = async () => {
-    setLoading(true);
     try {
+        setInitialLoading(true);
+
         const res = await fetch(
-        `${API_BASE}/integrations/mercadolibre/orders?channel_id=${channelId}`
+        `${API_BASE}/integrations/mercadolibre/orders?channel_id=${channelId}`,
+        { cache: "no-store" }
         );
+
+        if (!res.ok) {
+        throw new Error("Failed to fetch orders");
+        }
 
         const json = await res.json();
 
-        if (Array.isArray(json)) {
-        setOrders(json);
+        console.log("Orders response:", json);
+
+        if (json.data && Array.isArray(json.data)) {
+        setOrders(json.data);
         } else {
         setOrders([]);
         }
 
     } catch (err) {
-            console.error("Error loading orders:", err);
-            setOrders([]);
+        console.error("Error loading orders:", err);
+        setOrders([]);
     } finally {
-            setLoading(false);
-            setInitialLoading(false); // 👈 ESTO FALTABA
+        setInitialLoading(false);
     }
   };
+
 
 
  
@@ -177,74 +185,58 @@ export default function OrdersPage() {
           </thead>
 
           <tbody>
-            {initialLoading && (
-              <tr>
+            {initialLoading ? (
+                <tr>
                 <td colSpan={8} className="p-6 text-center text-gray-400">
-                  Loading orders...
+                    Loading orders...
                 </td>
-              </tr>
-            )}
-
-            {!initialLoading && orders.length === 0 && (
-              <tr>
+                </tr>
+            ) : orders.length === 0 ? (
+                <tr>
                 <td colSpan={8} className="p-6 text-center text-gray-400">
-                  No orders found
+                    No orders found
                 </td>
-              </tr>
+                </tr>
+            ) : (
+                orders.map((o: any) => (
+                <tr
+                    key={o.id}
+                    className="border-b last:border-none hover:bg-gray-50 transition"
+                >
+                    <td className="p-4 font-medium">{o.external_order_id}</td>
+                    <td className="p-4 text-gray-500">{o.id}</td>
+                    <td className="p-4">
+                    <span
+                        className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${getChannelStyle(
+                        o.channel
+                        )}`}
+                    >
+                        {getChannelIcon(o.channel)}
+                        {o.channel_name}
+                    </span>
+                    </td>
+                    <td className="p-4">
+                    <span
+                        className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusStyle(
+                        o.status
+                        )}`}
+                    >
+                        {o.status || "—"}
+                    </span>
+                    </td>
+                    <td className="p-4 font-semibold">${o.total_amount}</td>
+                    <td className="p-4">{o.currency}</td>
+                    <td className="p-4 text-gray-500">
+                    {formatDate(o.ml_last_updated)}
+                    </td>
+                    <td className="p-4 text-gray-500">
+                    {formatDate(o.created_at)}
+                    </td>
+                </tr>
+                ))
             )}
-
-            {orders.map((o: any) => (
-              <tr
-                key={o.id}
-                className="border-b last:border-none hover:bg-gray-50 transition"
-              >
-                <td className="p-4 font-medium">
-                  {o.external_order_id}
-                </td>
-
-                <td className="p-4 text-gray-500">
-                  {o.id}
-                </td>
-
-                <td className="p-4">
-                  <span
-                    className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${getChannelStyle(
-                      o.channel
-                    )}`}
-                  >
-                    {getChannelIcon(o.channel)}
-                    {o.channel_name || o.channel}
-                  </span>
-                </td>
-
-                <td className="p-4">
-                  <span
-                    className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusStyle(
-                      o.status
-                    )}`}
-                  >
-                    {o.status}
-                  </span>
-                </td>
-
-                <td className="p-4 font-semibold">
-                  ${o.total_amount}
-                </td>
-
-                <td className="p-4">
-                  {o.currency}
-                </td>
-
-                <td className="p-4 text-gray-500">
-                  {formatDate(o.ml_last_updated)}
-                </td>
-
-                <td className="p-4 text-gray-500">
-                  {formatDate(o.created_at)}
-                </td>
-              </tr>
-            ))}
           </tbody>
+
         </table>
       </div>
     </div>
