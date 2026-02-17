@@ -23,23 +23,27 @@ export default function OrdersPage() {
   // Fetch Orders
   // =========================
   const fetchOrders = async () => {
+    setLoading(true);
+
     try {
         const res = await fetch(
-          `${API_BASE}/integrations/mercadolibre/orders?channel_id=${channelId}`
+        `${API_BASE}/integrations/mercadolibre/orders?channel_id=${channelId}`
         );
 
-        const json = await res.json();
-
-     if (json.data && Array.isArray(json.data)) {
-          setOrders(json.data);
-        } else {
-         setOrders([]);
+        if (!res.ok) {
+        throw new Error("Failed to fetch orders");
         }
+
+        const data = await res.json();
+        setOrders(data || []);
     } catch (err) {
         console.error("Error loading orders:", err);
         setOrders([]);
+    } finally {
+        setLoading(false);
     }
-  };
+};
+
 
 
   // =========================
