@@ -73,6 +73,26 @@ export default function OrdersPage() {
   }, [meta.offset]);
 
   // =========================
+  // Sync Orders
+  // =========================
+  const handleSync = async () => {
+    try {
+      setLoading(true);
+
+      await fetch(
+        `${API_BASE}/integrations/mercadolibre/orders/sync?channel_id=${channelId}`,
+        { method: "POST" }
+      );
+
+      await fetchOrders();
+    } catch (err) {
+      console.error("Sync failed:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // =========================
   // Pagination
   // =========================
   const nextPage = () => {
@@ -87,12 +107,21 @@ export default function OrdersPage() {
     }
   };
 
-  const resetFilters = () => {
+  // =========================
+  // Reset Filters
+  // =========================
+  const resetFilters = async () => {
     setSearch("");
     setStatus("");
     setDateFrom("");
     setDateTo("");
-    setMeta({ ...meta, offset: 0 });
+
+    const newMeta = { ...meta, offset: 0 };
+    setMeta(newMeta);
+
+    setTimeout(() => {
+      fetchOrders();
+    }, 0);
   };
 
   // =========================
@@ -151,13 +180,24 @@ export default function OrdersPage() {
     return new Date(date).toLocaleString();
   };
 
-  const start = meta.offset + 1;
+  const start = meta.total === 0 ? 0 : meta.offset + 1;
   const end = Math.min(meta.offset + meta.limit, meta.total);
 
   return (
     <div className="p-8">
 
-      <h1 className="text-2xl font-bold mb-6">Orders</h1>
+      {/* HEADER + SYNC */}
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">Orders</h1>
+
+        <button
+          onClick={handleSync}
+          disabled={loading}
+          className="bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700 transition font-medium"
+        >
+          {loading ? "Syncing..." : "Sync Orders"}
+        </button>
+      </div>
 
       {/* FILTERS */}
       <div className="bg-white p-4 rounded-lg shadow-sm border mb-6 flex gap-4 flex-wrap">
@@ -283,7 +323,7 @@ export default function OrdersPage() {
       {/* PAGINATION */}
       <div className="flex justify-between items-center mt-6 text-sm">
         <div>
-          Showing {meta.total === 0 ? 0 : start}–{end} of {meta.total}
+          Showing {start}–{end} of {meta.total}
         </div>
 
         <div className="flex gap-2">
