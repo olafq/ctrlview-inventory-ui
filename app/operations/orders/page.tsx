@@ -17,12 +17,30 @@ export default function OrdersPage() {
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
-  const [meta, setMeta] = useState({ total: 0, offset: 0, limit: 50 });
+
+  const [meta, setMeta] = useState({
+    total: 0,
+    offset: 0,
+    limit: 20,
+  });
 
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [status, setStatus] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+
+  // =========================
+  // Debounce Search
+  // =========================
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(search);
+      setMeta((prev) => ({ ...prev, offset: 0 }));
+    }, 400);
+
+    return () => clearTimeout(handler);
+  }, [search]);
 
   // =========================
   // Build Query
@@ -34,7 +52,7 @@ export default function OrdersPage() {
     params.append("limit", meta.limit.toString());
 
     if (status) params.append("status", status);
-    if (search) params.append("order_id", search);
+    if (debouncedSearch) params.append("order_id", debouncedSearch);
     if (dateFrom) params.append("date_from", dateFrom);
     if (dateTo) params.append("date_to", dateTo);
 
@@ -53,14 +71,17 @@ export default function OrdersPage() {
         { cache: "no-store" }
       );
 
-      if (!res.ok) throw new Error("Failed to fetch orders");
+      if (!res.ok) throw new Error("Failed to fetch");
 
       const json = await res.json();
 
       setOrders(json.data || []);
-      setMeta(json.meta || { total: 0, offset: 0, limit: 50 });
+      setMeta((prev) => ({
+        ...prev,
+        total: json.meta?.total || 0,
+      }));
     } catch (err) {
-      console.error("Error loading orders:", err);
+      console.error(err);
       setOrders([]);
     } finally {
       setInitialLoading(false);
@@ -68,9 +89,10 @@ export default function OrdersPage() {
     }
   };
 
+  // Refetch when filters change
   useEffect(() => {
     fetchOrders();
-  }, [meta.offset]);
+  }, [meta.offset, status, debouncedSearch, dateFrom, dateTo]);
 
   // =========================
   // Sync Orders
@@ -93,49 +115,52 @@ export default function OrdersPage() {
   };
 
   // =========================
-  // Pagination
+  // Reset
   // =========================
-  const nextPage = () => {
-    if (meta.offset + meta.limit < meta.total) {
-      setMeta({ ...meta, offset: meta.offset + meta.limit });
-    }
-  };
-
-  const prevPage = () => {
-    if (meta.offset - meta.limit >= 0) {
-      setMeta({ ...meta, offset: meta.offset - meta.limit });
-    }
-  };
-
-  // =========================
-  // Reset Filters
-  // =========================
-  const resetFilters = async () => {
+  const resetFilters = () => {
     setSearch("");
     setStatus("");
     setDateFrom("");
     setDateTo("");
-
-    const newMeta = { ...meta, offset: 0 };
-    setMeta(newMeta);
-
-    setTimeout(() => {
-      fetchOrders();
-    }, 0);
+    setMeta((prev) => ({ ...prev, offset: 0 }));
   };
 
   // =========================
-  // Styles
+  // Pagination
   // =========================
+  const nextPage = () => {
+    if (meta.offset + meta.limit < meta.total) {
+      setMeta((prev) => ({
+        ...prev,
+        offset: prev.offset + prev.limit,
+      }));
+    }
+  };
+
+  const prevPage = () => {
+    if (meta.offset > 0) {
+      setMeta((prev) => ({
+        ...prev,
+        offset: prev.offset - prev.limit,
+      }));
+    }
+  };
+
+  // =========================
+  // Helpers
+  // =========================
+  const formatDate = (date: string | null) =>
+    date ? new Date(date).toLocaleString() : "-";
+
   const getStatusStyle = (status: string) => {
     switch (status) {
       case "paid":
         return "bg-green-100 text-green-700";
+      case "pending":
+        return "bg-yellow-100 text-yellow-700";
       case "cancelled":
       case "refunded":
         return "bg-red-100 text-red-700";
-      case "pending":
-        return "bg-yellow-100 text-yellow-700";
       default:
         return "bg-gray-100 text-gray-600";
     }
@@ -151,8 +176,6 @@ export default function OrdersPage() {
         return "bg-sky-100 text-sky-700";
       case "amazon":
         return "bg-orange-100 text-orange-700";
-      case "pos":
-        return "bg-gray-200 text-gray-800";
       default:
         return "bg-gray-100 text-gray-600";
     }
@@ -168,16 +191,9 @@ export default function OrdersPage() {
         return <Package size={14} className="mr-1" />;
       case "amazon":
         return <Truck size={14} className="mr-1" />;
-      case "pos":
-        return <CreditCard size={14} className="mr-1" />;
       default:
-        return <Package size={14} className="mr-1" />;
+        return <CreditCard size={14} className="mr-1" />;
     }
-  };
-
-  const formatDate = (date: string | null) => {
-    if (!date) return "-";
-    return new Date(date).toLocaleString();
   };
 
   const start = meta.total === 0 ? 0 : meta.offset + 1;
@@ -186,9 +202,9 @@ export default function OrdersPage() {
   return (
     <div className="p-8">
 
-      {/* HEADER + SYNC */}
+      {/* HEADER */}
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Orders</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Orders</h1>
 
         <button
           onClick={handleSync}
@@ -211,7 +227,10 @@ export default function OrdersPage() {
 
         <select
           value={status}
-          onChange={(e) => setStatus(e.target.value)}
+          onChange={(e) => {
+            setStatus(e.target.value);
+            setMeta((prev) => ({ ...prev, offset: 0 }));
+          }}
           className="border px-3 py-2 rounded-md text-sm"
         >
           <option value="">All Status</option>
@@ -224,26 +243,22 @@ export default function OrdersPage() {
         <input
           type="datetime-local"
           value={dateFrom}
-          onChange={(e) => setDateFrom(e.target.value)}
+          onChange={(e) => {
+            setDateFrom(e.target.value);
+            setMeta((prev) => ({ ...prev, offset: 0 }));
+          }}
           className="border px-3 py-2 rounded-md text-sm"
         />
 
         <input
           type="datetime-local"
           value={dateTo}
-          onChange={(e) => setDateTo(e.target.value)}
+          onChange={(e) => {
+            setDateTo(e.target.value);
+            setMeta((prev) => ({ ...prev, offset: 0 }));
+          }}
           className="border px-3 py-2 rounded-md text-sm"
         />
-
-        <button
-          onClick={() => {
-            setMeta({ ...meta, offset: 0 });
-            fetchOrders();
-          }}
-          className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm"
-        >
-          Apply
-        </button>
 
         <button
           onClick={resetFilters}
@@ -256,7 +271,7 @@ export default function OrdersPage() {
       {/* TABLE */}
       <div className="bg-white rounded-xl shadow-sm border overflow-x-auto">
         <table className="w-full text-left text-sm">
-          <thead className="bg-gray-50 border-b text-gray-700 uppercase text-xs tracking-wider">
+          <thead className="bg-gray-50 border-b text-gray-700 uppercase text-xs">
             <tr>
               <th className="p-4">Order ID</th>
               <th className="p-4">Internal ID</th>
@@ -268,16 +283,17 @@ export default function OrdersPage() {
               <th className="p-4">Created</th>
             </tr>
           </thead>
+
           <tbody>
-            {initialLoading ? (
-              <tr>
-                <td colSpan={8} className="p-6 text-center text-gray-400">
-                  Loading orders...
-                </td>
-              </tr>
+            {loading && initialLoading ? (
+              [...Array(5)].map((_, i) => (
+                <tr key={i} className="animate-pulse border-b">
+                  <td colSpan={8} className="p-6 bg-gray-100" />
+                </tr>
+              ))
             ) : orders.length === 0 ? (
               <tr>
-                <td colSpan={8} className="p-6 text-center text-gray-400">
+                <td colSpan={8} className="p-8 text-center text-gray-400">
                   No orders found
                 </td>
               </tr>
@@ -287,32 +303,20 @@ export default function OrdersPage() {
                   <td className="p-4 font-medium">{o.external_order_id}</td>
                   <td className="p-4 text-gray-500">{o.id}</td>
                   <td className="p-4">
-                    <span
-                      className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${getChannelStyle(
-                        o.channel
-                      )}`}
-                    >
+                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${getChannelStyle(o.channel)}`}>
                       {getChannelIcon(o.channel)}
                       {o.channel_name}
                     </span>
                   </td>
                   <td className="p-4">
-                    <span
-                      className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusStyle(
-                        o.status
-                      )}`}
-                    >
+                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusStyle(o.status)}`}>
                       {o.status || "—"}
                     </span>
                   </td>
                   <td className="p-4 font-semibold">${o.total_amount}</td>
                   <td className="p-4">{o.currency}</td>
-                  <td className="p-4 text-gray-500">
-                    {formatDate(o.ml_last_updated)}
-                  </td>
-                  <td className="p-4 text-gray-500">
-                    {formatDate(o.created_at)}
-                  </td>
+                  <td className="p-4 text-gray-500">{formatDate(o.ml_last_updated)}</td>
+                  <td className="p-4 text-gray-500">{formatDate(o.created_at)}</td>
                 </tr>
               ))
             )}
