@@ -6,14 +6,16 @@ export default function SettingsPage() {
   const [connected, setConnected] = useState<boolean | null>(null);
 
   const channelId = 1;
+  const tenantId = 1;
 
   const API_BASE = "https://oauth.goqconsultant.com";
 
   const checkStatus = async () => {
     try {
       const res = await fetch(
-        `${API_BASE}/integrations/mercadolibre/oauth/status?channel_id=${channelId}`
+        `${API_BASE}/integrations/mercadolibre/oauth/status?channel_id=${channelId}&tenant_id=${tenantId}`
       );
+
       const data = await res.json();
       setConnected(data.connected);
     } catch (err) {
@@ -27,13 +29,14 @@ export default function SettingsPage() {
   }, []);
 
   const connect = () => {
-    window.location.href = `${API_BASE}/integrations/mercadolibre/oauth/login?channel_id=${channelId}`;
+    window.location.href =
+      `${API_BASE}/integrations/mercadolibre/oauth/login?channel_id=${channelId}&tenant_id=${tenantId}`;
   };
 
   const disconnect = async () => {
     try {
       await fetch(
-        `${API_BASE}/integrations/mercadolibre/oauth/disconnect?channel_id=${channelId}`,
+        `${API_BASE}/integrations/mercadolibre/oauth/disconnect?channel_id=${channelId}&tenant_id=${tenantId}`,
         {
           method: "POST",
         }
