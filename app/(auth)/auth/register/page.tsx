@@ -19,8 +19,7 @@ export default function RegisterPage() {
     e.preventDefault();
     setLoading(true);
 
-    // 1. Construimos el payload dinámicamente para evitar enviar campos nulos
-    // que rompen la validación de Pydantic en el backend.
+    // Construimos el payload limpio
     const payload: any = {
       email: formData.email,
       password: formData.password,
@@ -35,25 +34,26 @@ export default function RegisterPage() {
     }
     
     try {
-      // 2. Llamada al servicio (asegurarse que auth.ts tenga la "/" final)
       const res = await authService.register(payload);
       
+      // Manejo de respuesta según tu router.py
       if (res.status === "success") {
-        if (isAdmin) {
-          alert(`¡Empresa creada con éxito! Tu código de vinculación es: ${res.company_code}. Guardalo para tus empleados.`);
-        } else {
-          alert("Registro exitoso como empleado.");
-        }
-        
-        // Redirección al Login
+        const msg = isAdmin 
+          ? `¡Empresa creada! Código de vinculación: ${res.company_code}` 
+          : "Registro exitoso como empleado.";
+        alert(msg);
         router.push("/auth/login");
       } else {
         alert("Error: " + (res.detail || "No se pudo completar el registro"));
       }
     } catch (error: any) {
       console.error("Error en registro:", error);
-      // Mostramos el mensaje de error específico que viene del backend
-      alert(error.message || "Error de conexión con el servidor.");
+      // Si el error es 404, avisamos que es la URL
+      if (error.message.includes("404")) {
+        alert("Error 404: La ruta del servidor no es correcta. Revisá si la URL en auth.ts lleva '/' al final o no.");
+      } else {
+        alert(error.message || "Error de conexión con el servidor.");
+      }
     } finally {
       setLoading(false);
     }
@@ -67,7 +67,6 @@ export default function RegisterPage() {
       >
         <h2 className="text-2xl font-bold mb-6 text-center text-orange-500">Crear cuenta en Sync</h2>
         
-        {/* Selector de Rol */}
         <div className="flex gap-4 mb-6">
           <button 
             type="button"
@@ -89,7 +88,6 @@ export default function RegisterPage() {
             className="w-full p-3 bg-gray-900 rounded border border-gray-700 focus:border-orange-500 outline-none transition"
             onChange={(e) => setFormData({...formData, full_name: e.target.value})} 
           />
-          
           <input 
             type="email" 
             placeholder="Email" 
@@ -97,7 +95,6 @@ export default function RegisterPage() {
             className="w-full p-3 bg-gray-900 rounded border border-gray-700 focus:border-orange-500 outline-none transition"
             onChange={(e) => setFormData({...formData, email: e.target.value})} 
           />
-
           <input 
             type="password" 
             placeholder="Contraseña" 
@@ -117,7 +114,7 @@ export default function RegisterPage() {
           ) : (
             <input 
               type="text" 
-              placeholder="Código de Empresa (proporcionado por tu admin)" 
+              placeholder="Código de Empresa" 
               required
               className="w-full p-3 bg-gray-900 rounded border border-orange-900/30 focus:border-orange-500 outline-none transition"
               onChange={(e) => setFormData({...formData, company_code: e.target.value})} 
@@ -136,12 +133,10 @@ export default function RegisterPage() {
         <p className="text-center mt-6 text-sm text-gray-400">
           ¿Ya tienes cuenta?{" "}
           <button 
-            type="button"
+            type="button" 
             onClick={() => router.push("/auth/login")}
             className="text-orange-500 hover:underline"
-          >
-            Inicia sesión
-          </button>
+          > Inicia sesión </button>
         </p>
       </form>
     </div>
