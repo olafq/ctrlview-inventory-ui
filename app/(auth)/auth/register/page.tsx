@@ -19,32 +19,41 @@ export default function RegisterPage() {
     e.preventDefault();
     setLoading(true);
 
-    const payload = {
-      ...formData,
+    // 1. Construimos el payload dinámicamente para evitar enviar campos nulos
+    // que rompen la validación de Pydantic en el backend.
+    const payload: any = {
+      email: formData.email,
+      password: formData.password,
+      full_name: formData.full_name,
       is_admin: isAdmin,
-      company_name: isAdmin ? formData.company_name : null,
-      company_code: !isAdmin ? formData.company_code : null
     };
+
+    if (isAdmin) {
+      payload.company_name = formData.company_name;
+    } else {
+      payload.company_code = formData.company_code;
+    }
     
     try {
+      // 2. Llamada al servicio (asegurarse que auth.ts tenga la "/" final)
       const res = await authService.register(payload);
       
       if (res.status === "success") {
-        // Si es empresa, mostramos el código generado por el backend
         if (isAdmin) {
           alert(`¡Empresa creada con éxito! Tu código de vinculación es: ${res.company_code}. Guardalo para tus empleados.`);
         } else {
           alert("Registro exitoso como empleado.");
         }
         
-        // Redirección automática al Login para que ingrese sus datos
+        // Redirección al Login
         router.push("/auth/login");
       } else {
         alert("Error: " + (res.detail || "No se pudo completar el registro"));
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error en registro:", error);
-      alert("Error de conexión con el servidor.");
+      // Mostramos el mensaje de error específico que viene del backend
+      alert(error.message || "Error de conexión con el servidor.");
     } finally {
       setLoading(false);
     }
