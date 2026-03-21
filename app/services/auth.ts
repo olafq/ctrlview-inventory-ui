@@ -1,4 +1,4 @@
-const API_URL = "https://tu-url-de-render.com"; // Cambiala por la real
+const API_URL = "https://oauth.goqconsultant.com"; // Cambiala por la real
 
 export const authService = {
   register: async (data: any) => {
