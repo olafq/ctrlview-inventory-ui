@@ -10,7 +10,7 @@ export const authService = {
   register: async (data: any) => {
     // IMPORTANTE: Asegurate de que el objeto 'data' que viene del formulario
     // use "company_name" para que coincida con tu RegisterSchema de Python.
-    const response = await fetch(`${API_URL}/auth/register/`, { 
+    const response = await fetch(`${API_URL}/auth/register`, { 
       method: "POST",
       headers: { 
         "Content-Type": "application/json" 
