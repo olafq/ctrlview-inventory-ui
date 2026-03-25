@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Eye, EyeOff, Copy, Check, Link, Unlink } from "lucide-react"; // Importamos iconos para un look más pro
+import { Eye, EyeOff, Copy, Check, Link, Unlink } from "lucide-react";
 
 export default function SettingsPage() {
   const [connected, setConnected] = useState<boolean | null>(null);
   const [showCode, setShowCode] = useState(false);
-  const [companyCode, setCompanyCode] = useState(""); // Código B8344891 vendrá aquí
+  const [companyCode, setCompanyCode] = useState("");
   const [loadingCode, setLoadingCode] = useState(true);
   const [copied, setCopied] = useState(false);
 
@@ -14,7 +14,7 @@ export default function SettingsPage() {
   const tenantId = 1;
   const API_BASE = "https://oauth.goqconsultant.com";
 
-  // Función para verificar MercadoLibre
+  // 1. Verificar estado de MercadoLibre
   const checkStatus = async () => {
     try {
       const res = await fetch(
@@ -23,23 +23,30 @@ export default function SettingsPage() {
       const data = await res.json();
       setConnected(data.connected);
     } catch (err) {
-      console.error(err);
+      console.error("Error MeLi status:", err);
       setConnected(false);
     }
   };
 
-  // Función para traer el código de empresa (B8344891) desde tu backend
+  // 2. Traer el código de empresa (B8344891)
   const fetchCompanyData = async () => {
     try {
       const token = localStorage.getItem("sync_token");
+      if (!token) return;
+
       const res = await fetch(`${API_BASE}/auth/me`, {
         headers: { "Authorization": `Bearer ${token}` }
       });
+      
       const data = await res.json();
       
-      // Ajustamos según la estructura de tu tabla 'tenants' vista en Supabase
-      if (data.tenant?.company_code) {
-        setCompanyCode(data.tenant.company_code);
+      // Buscamos el código en las posibles estructuras del JSON
+      const code = data.company_code || 
+                   data.tenant?.company_code || 
+                   data.user?.tenant?.company_code;
+
+      if (code) {
+        setCompanyCode(code);
       }
     } catch (err) {
       console.error("Error al obtener company code:", err);
@@ -70,6 +77,7 @@ export default function SettingsPage() {
   };
 
   const copyToClipboard = () => {
+    if (!companyCode) return;
     navigator.clipboard.writeText(companyCode);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -84,11 +92,9 @@ export default function SettingsPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         
-        {/* SECCIÓN 1: CÓDIGO DE EMPRESA (GESTIÓN DE EQUIPO) */}
+        {/* SECCIÓN: ACCESO DE EMPLEADOS */}
         <div className="bg-[#1a1d23] border border-gray-800 rounded-xl p-6 shadow-xl">
-          <div className="flex items-center gap-2 mb-4">
-            <h2 className="text-lg font-semibold text-orange-500">Acceso de Empleados</h2>
-          </div>
+          <h2 className="text-lg font-semibold text-orange-500 mb-2">Acceso de Empleados</h2>
           <p className="text-gray-400 text-sm mb-6">
             Comparte este código con tus empleados para que se registren en tu organización.
           </p>
@@ -98,10 +104,11 @@ export default function SettingsPage() {
               <input
                 type={showCode ? "text" : "password"}
                 readOnly
-                value={loadingCode ? "Cargando..." : companyCode}
+                value={loadingCode ? "Cargando..." : companyCode || "No disponible"}
                 className="w-full bg-[#0f1115] border border-gray-700 rounded-lg px-4 py-3 text-white font-mono focus:outline-none focus:border-orange-500/50 transition-all"
               />
               <button
+                type="button"
                 onClick={() => setShowCode(!showCode)}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white"
               >
@@ -115,7 +122,7 @@ export default function SettingsPage() {
               className={`w-full flex items-center justify-center gap-2 py-3 rounded-lg font-bold transition-all ${
                 copied 
                 ? "bg-green-600/20 text-green-500 border border-green-600/50" 
-                : "bg-orange-600 hover:bg-orange-700 text-white"
+                : "bg-orange-600 hover:bg-orange-700 text-white disabled:bg-gray-800 disabled:text-gray-600"
               }`}
             >
               {copied ? <Check size={18} /> : <Copy size={18} />}
@@ -124,7 +131,7 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* SECCIÓN 2: MERCADOLIBRE (ESTILO MEJORADO) */}
+        {/* SECCIÓN: MERCADOLIBRE */}
         <div className="bg-[#1a1d23] border border-gray-800 rounded-xl p-6 shadow-xl">
           <h2 className="text-lg font-semibold mb-4 text-white">MercadoLibre Integration</h2>
           
