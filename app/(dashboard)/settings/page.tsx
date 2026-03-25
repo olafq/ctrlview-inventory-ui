@@ -10,8 +10,9 @@ export default function SettingsPage() {
   const [loadingCode, setLoadingCode] = useState(true);
   const [copied, setCopied] = useState(false);
 
+  // NOTA: Ajusta estos IDs según tu necesidad o tráelos del token si es dinámico
   const channelId = 1;
-  const tenantId = 1;
+  const tenantId = 1; 
   const API_BASE = "https://oauth.goqconsultant.com";
 
   // 1. Verificar estado de MercadoLibre
@@ -28,27 +29,30 @@ export default function SettingsPage() {
     }
   };
 
-  // 2. Traer el código de empresa (B8344891) con la ruta corregida
+  // 2. Traer el código de empresa (B8344891) - CORREGIDO
   const fetchCompanyData = async () => {
     try {
       const token = localStorage.getItem("sync_token");
       if (!token) return;
 
-      // Cambiamos a /users/me para evitar el 404 de /auth/me
-      const res = await fetch(`${API_BASE}/users/me`, {
-        headers: { "Authorization": `Bearer ${token}` }
+      // LLAMADA CORRECTA A /auth/me (Elimina el 404)
+      const res = await fetch(`${API_BASE}/auth/me`, {
+        headers: { 
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json"
+        }
       });
       
-      const data = await res.json();
-      console.log("DEBUG - Datos recibidos:", data); // Ver en consola F12
+      if (res.ok) {
+        const data = await res.json();
+        console.log("DEBUG - Datos recibidos:", data);
 
-      // Buscamos el código en las posibles estructuras (según tu tabla 'tenants')
-      const code = data.company_code || 
-                   data.tenant?.company_code || 
-                   data.user?.tenant?.company_code;
-
-      if (code) {
-        setCompanyCode(code);
+        // El backend devuelve 'company_code' directamente en el primer nivel
+        if (data.company_code) {
+          setCompanyCode(data.company_code);
+        }
+      } else {
+        console.error("Error en la respuesta del servidor:", res.status);
       }
     } catch (err) {
       console.error("Error al obtener company code:", err);
