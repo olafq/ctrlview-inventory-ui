@@ -28,26 +28,24 @@ export default function SettingsPage() {
     }
   };
 
-  // 2. Traer el código de empresa (B8344891) y debuggear
+  // 2. Traer el código de empresa (B8344891) con la ruta corregida
   const fetchCompanyData = async () => {
     try {
       const token = localStorage.getItem("sync_token");
       if (!token) return;
 
-      const res = await fetch(`${API_BASE}/auth/me`, {
+      // Cambiamos a /users/me para evitar el 404 de /auth/me
+      const res = await fetch(`${API_BASE}/users/me`, {
         headers: { "Authorization": `Bearer ${token}` }
       });
       
       const data = await res.json();
-      
-      // LOG DE CONTROL: Mira esto en la consola (F12) si no aparece el código
-      console.log("DEBUG - Datos de /auth/me:", data);
+      console.log("DEBUG - Datos recibidos:", data); // Ver en consola F12
 
-      // Probamos todas las rutas posibles del JSON según tu base de datos
+      // Buscamos el código en las posibles estructuras (según tu tabla 'tenants')
       const code = data.company_code || 
                    data.tenant?.company_code || 
-                   data.user?.tenant?.company_code ||
-                   (data.tenant && Array.isArray(data.tenant) ? data.tenant[0]?.company_code : null);
+                   data.user?.tenant?.company_code;
 
       if (code) {
         setCompanyCode(code);
@@ -89,9 +87,9 @@ export default function SettingsPage() {
 
   return (
     <div className="p-8 max-w-5xl mx-auto space-y-8 text-white">
-      <div>
-        <h1 className="text-3xl font-bold mb-2 text-white">Configuración</h1>
-        <p className="text-gray-400">Gestiona tus integraciones y accesos de equipo</p>
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold mb-2">Configuración</h1>
+        <p className="text-gray-400 text-sm">Gestiona tus integraciones y accesos de equipo</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -109,7 +107,7 @@ export default function SettingsPage() {
                 type={showCode ? "text" : "password"}
                 readOnly
                 value={loadingCode ? "Cargando..." : companyCode || "No disponible"}
-                className="w-full bg-[#0f1115] border border-gray-700 rounded-lg px-4 py-3 text-white font-mono focus:outline-none focus:border-orange-500/50 transition-all"
+                className="w-full bg-[#0f1115] border border-gray-800 rounded-lg px-4 py-3 text-white font-mono focus:outline-none focus:border-orange-500/50 transition-all"
               />
               <button
                 type="button"
@@ -137,7 +135,7 @@ export default function SettingsPage() {
 
         {/* SECCIÓN: MERCADOLIBRE */}
         <div className="bg-[#1a1d23] border border-gray-800 rounded-xl p-6 shadow-xl">
-          <h2 className="text-lg font-semibold mb-4 text-white">MercadoLibre Integration</h2>
+          <h2 className="text-lg font-semibold mb-4">MercadoLibre Integration</h2>
           
           {connected === null ? (
             <p className="text-gray-500 animate-pulse">Verificando conexión...</p>
