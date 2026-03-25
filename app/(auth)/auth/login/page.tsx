@@ -5,8 +5,10 @@ import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
   const router = useRouter();
+  
+  // 1. Cambiamos 'username' por 'email' para que coincida con el Schema
   const [formData, setFormData] = useState({
-    username: "", // FastAPI espera 'username' para el OAuth2
+    email: "", 
     password: "",
   });
   const [loading, setLoading] = useState(false);
@@ -16,21 +18,19 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      // El login usa URLSearchParams porque el backend usa OAuth2PasswordRequestForm
+      // 2. Enviamos el JSON (tu service ya se encarga de hacer el stringify)
       const res = await authService.login(formData);
 
       if (res.access_token) {
-        // 1. Guardamos el token en localStorage para persistencia
         localStorage.setItem("sync_token", res.access_token);
         
-        // 2. Redirigimos al dashboard principal
-        router.push("/operations/orders"); // O la ruta que prefieras de inicio
-      } else {
-        alert("Credenciales incorrectas: " + (res.detail || "Error desconocido"));
+        // 3. Redirigimos (Asegurate de que esta ruta exista)
+        router.push("/dashboard"); 
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error en login:", error);
-      alert("Error al conectar con el servidor.");
+      // Mostramos el error real que viene del backend
+      alert(error.message || "Error al conectar con el servidor.");
     } finally {
       setLoading(false);
     }
@@ -52,7 +52,8 @@ export default function LoginPage() {
               required
               className="w-full p-3 bg-gray-900 rounded border border-gray-700 focus:border-orange-500 outline-none transition"
               placeholder="tu@email.com"
-              onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+              // 4. Actualizamos el campo 'email'
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
             />
           </div>
 
