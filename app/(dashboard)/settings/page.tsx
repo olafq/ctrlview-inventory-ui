@@ -28,7 +28,7 @@ export default function SettingsPage() {
     }
   };
 
-  // 2. Traer el código de empresa (B8344891)
+  // 2. Traer el código de empresa (B8344891) y debuggear
   const fetchCompanyData = async () => {
     try {
       const token = localStorage.getItem("sync_token");
@@ -40,10 +40,14 @@ export default function SettingsPage() {
       
       const data = await res.json();
       
-      // Buscamos el código en las posibles estructuras del JSON
+      // LOG DE CONTROL: Mira esto en la consola (F12) si no aparece el código
+      console.log("DEBUG - Datos de /auth/me:", data);
+
+      // Probamos todas las rutas posibles del JSON según tu base de datos
       const code = data.company_code || 
                    data.tenant?.company_code || 
-                   data.user?.tenant?.company_code;
+                   data.user?.tenant?.company_code ||
+                   (data.tenant && Array.isArray(data.tenant) ? data.tenant[0]?.company_code : null);
 
       if (code) {
         setCompanyCode(code);
