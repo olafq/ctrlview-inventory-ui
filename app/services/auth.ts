@@ -5,11 +5,8 @@ const API_URL = "https://oauth.goqconsultant.com";
 export const authService = {
   /**
    * Registro de usuario (Empresa o Empleado)
-   * Se agrega la "/" al final para evitar redirecciones 307 que rompen CORS en Vercel.
    */
   register: async (data: any) => {
-    // IMPORTANTE: Asegurate de que el objeto 'data' que viene del formulario
-    // use "company_name" para que coincida con tu RegisterSchema de Python.
     const response = await fetch(`${API_URL}/auth/register`, { 
       method: "POST",
       headers: { 
@@ -27,20 +24,26 @@ export const authService = {
   },
 
   /**
-   * Login de usuario
+   * Login de usuario - CORREGIDO PARA JSON
    */
   login: async (credentials: any) => {
-    // También agregamos la "/" por consistencia y seguridad
-    const response = await fetch(`${API_URL}/auth/login/`, {
+    // 1. Usamos la URL sin barra al final (FastAPI prefiere esto)
+    // 2. Cambiamos el Content-Type a application/json
+    const response = await fetch(`${API_URL}/auth/login`, {
       method: "POST",
       headers: { 
-        "Content-Type": "application/x-www-form-urlencoded" 
+        "Content-Type": "application/json" 
       },
-      body: new URLSearchParams(credentials),
+      // 3. Enviamos un JSON stringify, NO URLSearchParams
+      body: JSON.stringify({
+        email: credentials.email,
+        password: credentials.password
+      }),
     });
 
     if (!response.ok) {
       const errorData = await response.json();
+      // Esto capturará el error "401" de credenciales incorrectas
       throw new Error(errorData.detail || "Error en el login");
     }
 
