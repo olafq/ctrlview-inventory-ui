@@ -6,32 +6,38 @@ import { useRouter } from "next/navigation";
 export default function LoginPage() {
   const router = useRouter();
   
-  // 1. Cambiamos 'username' por 'email' para que coincida con el Schema
+  // 1. Unificamos a 'email' para que coincida con el Schema del backend
   const [formData, setFormData] = useState({
     email: "", 
     password: "",
   });
+  
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setError(""); // Limpiamos errores previos
 
     try {
-      // 2. Enviamos el JSON (tu service ya se encarga de hacer el stringify)
+      // 2. Enviamos el JSON (el service ya hace el stringify)
       const res = await authService.login(formData);
 
-      if (res.access_token) {
+      if (res && res.access_token) {
+        // 3. Guardamos el token para la sesión
         localStorage.setItem("sync_token", res.access_token);
         
-        // 3. Redirigimos (Asegurate de que esta ruta exista)
+        // 4. Redirigimos al dashboard principal
         router.push("/dashboard"); 
       }
     } catch (error: any) {
       console.error("Error en login:", error);
-      // Mostramos el error real que viene del backend
-      alert(error.message || "Error al conectar con el servidor.");
+      // 5. Capturamos el error 422 o 401 del backend
+      setError(error.message || "Credenciales incorrectas o error de servidor.");
     } finally {
+      // 6. BLOQUE CRÍTICO: Esto destraba el botón de "Iniciando sesión..." 
+      // independientemente de si la respuesta fue buena o mala.
       setLoading(false);
     }
   };
@@ -50,9 +56,10 @@ export default function LoginPage() {
             <input
               type="email"
               required
-              className="w-full p-3 bg-gray-900 rounded border border-gray-700 focus:border-orange-500 outline-none transition"
+              disabled={loading} // Bloquea el input mientras carga
+              className={`w-full p-3 bg-gray-900 rounded border border-gray-700 focus:border-orange-500 outline-none transition ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
               placeholder="tu@email.com"
-              // 4. Actualizamos el campo 'email'
+              value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
             />
           </div>
@@ -62,11 +69,20 @@ export default function LoginPage() {
             <input
               type="password"
               required
-              className="w-full p-3 bg-gray-900 rounded border border-gray-700 focus:border-orange-500 outline-none transition"
+              disabled={loading}
+              className={`w-full p-3 bg-gray-900 rounded border border-gray-700 focus:border-orange-500 outline-none transition ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
               placeholder="••••••••"
+              value={formData.password}
               onChange={(e) => setFormData({ ...formData, password: e.target.value })}
             />
           </div>
+
+          {/* Sección de error visible para el usuario */}
+          {error && (
+            <div className="bg-red-500/10 border border-red-500/50 text-red-500 text-sm p-3 rounded-lg text-center">
+              {error}
+            </div>
+          )}
 
           <button
             type="submit"
@@ -82,6 +98,7 @@ export default function LoginPage() {
         <div className="mt-6 text-center text-sm">
           <span className="text-gray-400">¿No tienes cuenta? </span>
           <button 
+            type="button"
             onClick={() => router.push("/auth/register")}
             className="text-orange-500 hover:underline font-medium"
           >
