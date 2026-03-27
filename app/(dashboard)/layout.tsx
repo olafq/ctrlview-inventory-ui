@@ -3,7 +3,7 @@
 import "../globals.css"
 import Link from "next/link";
 import { useState } from "react";
-import { useRouter } from "next/navigation"; // Importamos el router para redirigir
+import { useRouter } from "next/navigation"; 
 
 export default function RootLayout({
   children,
@@ -15,19 +15,52 @@ export default function RootLayout({
   const [operationsOpen, setOperationsOpen] = useState(false);
   const [analyticsOpen, setAnalyticsOpen] = useState(false);
   
+  // Estado para controlar la visibilidad del modal de confirmación
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  
   const router = useRouter();
 
-  // Función resolutiva para cerrar sesión
+  // Función que ejecuta el cierre definitivo
   const handleLogout = () => {
-    localStorage.removeItem("sync_token"); // Eliminamos el token de acceso
-    setOpen(false); // Cerramos el sidebar en mobile si estaba abierto
-    router.push("/auth/login");// Redirigimos al usuario al login
+    localStorage.removeItem("sync_token"); 
+    setOpen(false); 
+    setShowLogoutConfirm(false); // Cerramos el modal
+    router.push("/auth/login");
   };
 
   return (
     <html lang="es">
       <body className="h-screen overflow-hidden">
-        <div className="flex h-full">
+        <div className="flex h-full relative">
+
+          {/* VENTANA DE CONFIRMACIÓN (MODAL) */}
+          {showLogoutConfirm && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 text-center">
+              <div className="bg-[#11141b] border border-gray-800 rounded-2xl p-8 max-w-sm w-full shadow-2xl animate-in fade-in zoom-in duration-200">
+                <div className="w-16 h-16 bg-red-500/10 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <span className="text-2xl">🚪</span>
+                </div>
+                <h3 className="text-xl font-bold text-white mb-2">¿Cerrar sesión?</h3>
+                <p className="text-gray-400 mb-8 text-sm">
+                  Perderás el acceso a tu panel de control hasta que vuelvas a ingresar.
+                </p>
+                <div className="flex flex-col gap-3">
+                  <button
+                    onClick={handleLogout}
+                    className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded-xl transition-all active:scale-[0.98]"
+                  >
+                    Sí, cerrar sesión
+                  </button>
+                  <button
+                    onClick={() => setShowLogoutConfirm(false)}
+                    className="w-full bg-transparent hover:bg-gray-800 text-gray-400 py-3 rounded-xl transition-all"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Overlay mobile */}
           {open && (
@@ -168,10 +201,10 @@ export default function RootLayout({
                 </div>
               </Link>
 
-              {/* SEPARADOR VISUAL */}
+              {/* SEPARADOR VISUAL Y BOTÓN DE DISPARO */}
               <div className="pt-4 border-t border-gray-700 mt-4">
                 <button
-                  onClick={handleLogout}
+                  onClick={() => setShowLogoutConfirm(true)} // Cambiado para abrir el modal
                   className="w-full text-left px-3 py-2 rounded text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors flex items-center gap-2"
                 >
                   🚪 Cerrar Sesión
@@ -197,7 +230,7 @@ export default function RootLayout({
             </header>
 
             {/* CONTENT */}
-            <main className="flex-1 p-4 md:p-6 overflow-auto">
+            <main className="flex-1 p-4 md:p-6 overflow-auto text-gray-900">
               {children}
             </main>
           </div>
