@@ -21,7 +21,7 @@ export default function RootLayout({
   const handleLogout = () => {
     localStorage.removeItem("sync_token"); // Eliminamos el token de acceso
     setOpen(false); // Cerramos el sidebar en mobile si estaba abierto
-    router.push("/login"); // Redirigimos al usuario al login
+    router.push("/auth/login");// Redirigimos al usuario al login
   };
 
   return (
