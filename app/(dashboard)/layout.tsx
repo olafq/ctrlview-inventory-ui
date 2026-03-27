@@ -3,6 +3,7 @@
 import "../globals.css"
 import Link from "next/link";
 import { useState } from "react";
+import { useRouter } from "next/navigation"; // Importamos el router para redirigir
 
 export default function RootLayout({
   children,
@@ -13,6 +14,15 @@ export default function RootLayout({
   const [channelsOpen, setChannelsOpen] = useState(false);
   const [operationsOpen, setOperationsOpen] = useState(false);
   const [analyticsOpen, setAnalyticsOpen] = useState(false);
+  
+  const router = useRouter();
+
+  // Función resolutiva para cerrar sesión
+  const handleLogout = () => {
+    localStorage.removeItem("sync_token"); // Eliminamos el token de acceso
+    setOpen(false); // Cerramos el sidebar en mobile si estaba abierto
+    router.push("/login"); // Redirigimos al usuario al login
+  };
 
   return (
     <html lang="es">
@@ -41,7 +51,6 @@ export default function RootLayout({
             </div>
 
             <nav className="flex-1 p-4 space-y-1 overflow-auto">
-
               <Link href="/">
                 <div className="px-3 py-2 rounded hover:bg-gray-800 cursor-pointer">
                   📊 Dashboard
@@ -158,6 +167,16 @@ export default function RootLayout({
                   ⚙️ Settings
                 </div>
               </Link>
+
+              {/* SEPARADOR VISUAL */}
+              <div className="pt-4 border-t border-gray-700 mt-4">
+                <button
+                  onClick={handleLogout}
+                  className="w-full text-left px-3 py-2 rounded text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors flex items-center gap-2"
+                >
+                  🚪 Cerrar Sesión
+                </button>
+              </div>
             </nav>
           </aside>
 
@@ -166,15 +185,12 @@ export default function RootLayout({
 
             {/* HEADER */}
             <header className="h-14 bg-white border-b flex items-center px-4 md:px-6 justify-between">
-
-              {/* Mobile menu button */}
               <button
                 className="md:hidden text-gray-700"
                 onClick={() => setOpen(true)}
               >
                 ☰
               </button>
-
               <span className="text-sm text-gray-600">
                 Inventory Management
               </span>
