@@ -131,7 +131,7 @@ export default function RootLayout({
                 onClick={() => setChannelsOpen(!channelsOpen)}
                 className="px-3 py-2 rounded hover:bg-gray-800 cursor-pointer flex justify-between"
               >
-                🔗 Channels
+                🔗 Inventory for channels
                 <span>{channelsOpen ? "▾" : "▸"}</span>
               </div>
 
