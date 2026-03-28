@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Eye, EyeOff, Copy, Check, Link, Unlink, Lock } from "lucide-react";
 
 export default function SettingsPage() {
@@ -10,17 +10,18 @@ export default function SettingsPage() {
   const [loadingCode, setLoadingCode] = useState(true);
   const [copied, setCopied] = useState(false);
   
-  // NUEVO: Estado para el rol del usuario
+  // ESTADOS DINÁMICOS (Cero Hardcodeo)
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [currentTenantId, setCurrentTenantId] = useState<number | null>(null);
+  const [mlChannelId, setMlChannelId] = useState<number | null>(null);
 
-  const channelId = 1;
-  const tenantId = 1; 
   const API_BASE = "https://oauth.goqconsultant.com";
 
-  const checkStatus = async () => {
+  // Función para verificar el estado de la conexión con MercadoLibre
+  const checkStatus = useCallback(async (tId: number, cId: number) => {
     try {
       const res = await fetch(
-        `${API_BASE}/integrations/mercadolibre/oauth/status?channel_id=${channelId}&tenant_id=${tenantId}`
+        `${API_BASE}/integrations/mercadolibre/oauth/status?channel_id=${cId}&tenant_id=${tId}`
       );
       const data = await res.json();
       setConnected(data.connected);
@@ -28,7 +29,7 @@ export default function SettingsPage() {
       console.error("Error MeLi status:", err);
       setConnected(false);
     }
-  };
+  }, [API_BASE]);
 
   const fetchCompanyData = async () => {
     try {
@@ -46,8 +47,18 @@ export default function SettingsPage() {
         const data = await res.json();
         console.log("DEBUG - Datos recibidos:", data);
 
-        // Guardamos el rol para la lógica de UI
+        // 1. Guardamos el Rol y el Tenant ID real de la DB
         setUserRole(data.role); 
+        setCurrentTenantId(data.tenant_id);
+
+        // 2. Buscamos el canal de tipo 'mercadolibre' dinámicamente
+        const mlChannel = data.channels?.find((c: any) => c.type === "mercadolibre");
+        
+        if (mlChannel) {
+          setMlChannelId(mlChannel.id);
+          // 3. Una vez tenemos los IDs, verificamos el estado de conexión
+          checkStatus(data.tenant_id, mlChannel.id);
+        }
 
         if (data.company_code) {
           setCompanyCode(data.company_code);
@@ -61,20 +72,22 @@ export default function SettingsPage() {
   };
 
   useEffect(() => {
-    checkStatus();
     fetchCompanyData();
   }, []);
 
   const connectMeLi = () => {
-    if (userRole !== "admin") return; // Protección extra
-    window.location.href = `${API_BASE}/integrations/mercadolibre/oauth/login?channel_id=${channelId}&tenant_id=${tenantId}`;
+    // Protección: verificamos que seamos admin y que tengamos los IDs necesarios
+    if (userRole !== "admin" || !currentTenantId || !mlChannelId) return; 
+    
+    // Redirección dinámica basada en los datos del usuario logueado
+    window.location.href = `${API_BASE}/integrations/mercadolibre/oauth/login?channel_id=${mlChannelId}&tenant_id=${currentTenantId}`;
   };
 
   const disconnectMeLi = async () => {
-    if (userRole !== "admin") return;
+    if (userRole !== "admin" || !currentTenantId || !mlChannelId) return;
     try {
       await fetch(
-        `${API_BASE}/integrations/mercadolibre/oauth/disconnect?channel_id=${channelId}&tenant_id=${tenantId}`,
+        `${API_BASE}/integrations/mercadolibre/oauth/disconnect?channel_id=${mlChannelId}&tenant_id=${currentTenantId}`,
         { method: "POST" }
       );
       setConnected(false);
@@ -90,7 +103,6 @@ export default function SettingsPage() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // Definimos si es admin para limpiar el JSX
   const isAdmin = userRole === "admin";
 
   return (
@@ -102,7 +114,7 @@ export default function SettingsPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         
-        {/* SECCIÓN: ACCESO DE EMPLEADOS - Solo visible para ADMIN */}
+        {/* SECCIÓN: ACCESO DE EMPLEADOS */}
         {isAdmin && (
           <div className="bg-[#1a1d23] border border-gray-800 rounded-xl p-6 shadow-xl animate-in fade-in slide-in-from-bottom-2 duration-500">
             <h2 className="text-lg font-semibold text-orange-500 mb-2">Acceso de Empleados</h2>
@@ -143,24 +155,23 @@ export default function SettingsPage() {
           </div>
         )}
 
-        {/* SECCIÓN: MERCADOLIBRE - Adaptada por ROL */}
+        {/* SECCIÓN: MERCADOLIBRE - 100% Dinámica */}
         <div className="bg-[#1a1d23] border border-gray-800 rounded-xl p-6 shadow-xl">
           <h2 className="text-lg font-semibold mb-4">MercadoLibre Integration</h2>
           
           {connected === null ? (
-            <p className="text-gray-500 animate-pulse">Verificando conexión...</p>
+            <p className="text-gray-500 animate-pulse text-sm">Validando identidad y canales...</p>
           ) : connected ? (
             <div className="space-y-4">
               <div className="bg-green-500/10 border border-green-500/30 text-green-500 p-4 rounded-lg flex items-center gap-3">
                 <Link size={20} />
-                <span>Conectado correctamente ✅</span>
+                <span className="text-sm font-medium">Conectado correctamente ✅</span>
               </div>
               
-              {/* Solo el admin puede desconectar */}
               {isAdmin ? (
                 <button
                   onClick={disconnectMeLi}
-                  className="w-full bg-red-600/10 text-red-500 border border-red-600/30 py-3 rounded-lg hover:bg-red-600 hover:text-white transition-all font-bold"
+                  className="w-full bg-red-600/10 text-red-500 border border-red-600/30 py-3 rounded-lg hover:bg-red-600 hover:text-white transition-all font-bold text-sm"
                 >
                   Desconectar Cuenta
                 </button>
@@ -172,16 +183,16 @@ export default function SettingsPage() {
             <div className="space-y-4">
               <div className="bg-yellow-500/10 border border-yellow-500/30 text-yellow-600 p-4 rounded-lg flex items-center gap-3">
                 <Unlink size={20} />
-                <span>No conectado</span>
+                <span className="text-sm font-medium">No conectado</span>
               </div>
 
-              {/* Solo el admin puede conectar */}
               {isAdmin ? (
                 <button
                   onClick={connectMeLi}
-                  className="w-full bg-yellow-500 hover:bg-yellow-600 text-black py-3 rounded-lg font-bold transition-all shadow-lg"
+                  disabled={!mlChannelId}
+                  className="w-full bg-yellow-500 hover:bg-yellow-600 disabled:bg-gray-800 disabled:text-gray-500 text-black py-3 rounded-lg font-bold transition-all shadow-lg text-sm"
                 >
-                  Conectar MercadoLibre
+                  {mlChannelId ? "Conectar MercadoLibre" : "Configurando canales..."}
                 </button>
               ) : (
                 <div className="flex items-center justify-center gap-2 text-gray-500 bg-gray-800/20 py-3 rounded-lg border border-gray-800/50">
