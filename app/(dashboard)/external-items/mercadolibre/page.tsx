@@ -1,9 +1,8 @@
 "use client";
 import { useEffect, useState, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-// Importa tu hook de autenticación real aquí. Ejemplo:
-// import { useAuth } from '@/hooks/useAuth'; 
 
+// --- INTERFACES PROFESIONALES ---
 interface ExternalItem {
   id: number;
   external_id: string;
@@ -19,206 +18,163 @@ interface SyncStatus {
   finished_at?: string;
 }
 
-function MercadoLibreContent() {
+function MercadoLibreInventoryContent() {
   const searchParams = useSearchParams();
   const [items, setItems] = useState<ExternalItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [syncing, setSyncing] = useState(false);
   const [syncStatus, setSyncStatus] = useState<SyncStatus | null>(null);
 
-  // --- LÓGICA DINÁMICA PROFESIONAL ---
-  
-  // 1. Obtenemos el Channel ID de la URL. Si no hay, no mostramos nada (seguridad).
-  const channelId = searchParams.get('channel_id');
-
-  // 2. Simulamos la obtención del Tenant ID desde tu sesión/contexto de usuario.
-  // En producción, aquí usarías: const { user } = useAuth();
-  // Por ahora, extraemos el ID del objeto que ya vive en tu consola.
-  const [tenantId, setTenantId] = useState<string | null>(null);
+  // --- OBTENCIÓN DINÁMICA DE CONTEXTO ---
+  // No usamos "22" ni "53". Buscamos en la sesión activa
+  const [context, setContext] = useState<{ tid: string | null; cid: string | null }>({
+    tid: null,
+    cid: null
+  });
 
   useEffect(() => {
-    // Aquí es donde IdentityOS detecta al usuario real.
-    // Buscamos en el almacenamiento local o contexto lo que vimos en tu captura.
-    const storedUser = localStorage.getItem('supabase.auth.token'); // O tu método de auth
-    if (storedUser) {
-        const userData = JSON.parse(storedUser);
-        setTenantId(userData?.user?.user_metadata?.tenant_id || "21");
-    } else {
-        // Fallback temporal para desarrollo si no hay sesión activa
-        setTenantId("21"); 
-    }
-  }, []);
+    // Intentamos recuperar la sesión del localStorage donde Supabase guarda el user
+    const session = JSON.parse(localStorage.getItem('user_session') || '{}');
+    
+    // Prioridad: 1. URL Params (?tenant_id=...) | 2. Sesión guardada | 3. Metadata del objeto de consola
+    const currentTenant = searchParams.get('tenant_id') || session?.tenant_id || session?.user?.user_metadata?.tenant_id;
+    
+    // Buscamos el canal de tipo 'mercadolibre' dentro del array de canales del usuario
+    const mlChannel = session?.channels?.find((c: any) => c.type === 'mercadolibre')?.id;
+    const currentChannel = searchParams.get('channel_id') || mlChannel;
 
+    if (currentTenant && currentChannel) {
+      setContext({ tid: currentTenant, cid: currentChannel });
+    }
+  }, [searchParams]);
+
+  const { tid, cid } = context;
+
+  // --- ACCIONES DE API ---
   const fetchItems = useCallback(async () => {
-    if (!tenantId || !channelId) return;
-    setLoading(true);
+    if (!tid || !cid) return [];
     try {
-      const response = await fetch(
-        `https://oauth.goqconsultant.com/integrations/mercadolibre/items?tenant_id=${tenantId}&channel_id=${channelId}`
-      );
+      const response = await fetch(`https://oauth.goqconsultant.com/integrations/mercadolibre/items?tenant_id=${tid}&channel_id=${cid}`);
       if (response.ok) {
         const data = await response.json();
         setItems(data);
+        return data;
       }
-    } catch (error) {
-      console.error("❌ Error fetch items:", error);
-    } finally {
-      setLoading(false);
-    }
-  }, [channelId, tenantId]);
+    } catch (e) { console.error("Error fetching items", e); }
+    finally { setLoading(false); }
+    return [];
+  }, [tid, cid]);
 
-  const fetchLatestSync = useCallback(async () => {
-    if (!tenantId || !channelId) return;
+  const checkSyncStatus = useCallback(async () => {
+    if (!tid || !cid) return null;
     try {
-      const response = await fetch(
-        `https://oauth.goqconsultant.com/integrations/mercadolibre/import/latest?tenant_id=${tenantId}&channel_id=${channelId}`
-      );
-      if (response.ok) {
-        const data = await response.json();
-        setSyncStatus(data);
-      }
-    } catch (e) {
-      console.error("❌ Error sync status:", e);
-    }
-  }, [channelId, tenantId]);
+      const response = await fetch(`https://oauth.goqconsultant.com/integrations/mercadolibre/import/latest?tenant_id=${tid}&channel_id=${cid}`);
+      const data = await response.json();
+      setSyncStatus(data);
+      return data;
+    } catch (e) { return null; }
+  }, [tid, cid]);
 
-  const handleSync = async () => {
-    if (!tenantId || !channelId) return;
-    setSyncing(true);
-    try {
-      await fetch(
-        `https://oauth.goqconsultant.com/integrations/mercadolibre/import/start?tenant_id=${tenantId}&channel_id=${channelId}`, 
-        { method: 'POST' }
-      );
-      fetchLatestSync();
-      setTimeout(fetchItems, 5000);
-    } finally {
-      setSyncing(false);
-    }
-  };
+  const triggerAutoImport = useCallback(async () => {
+    if (!tid || !cid) return;
+    console.log("🚀 IdentityOS: Iniciando extracción automática...");
+    await fetch(`https://oauth.goqconsultant.com/integrations/mercadolibre/import/start?tenant_id=${tid}&channel_id=${cid}`, { method: 'POST' });
+    checkSyncStatus();
+  }, [tid, cid, checkSyncStatus]);
 
+  // --- LÓGICA DE CONTROL ---
   useEffect(() => {
-    if (tenantId && channelId) {
-      fetchItems();
-      fetchLatestSync();
-      const interval = setInterval(fetchLatestSync, 15000);
-      return () => clearInterval(interval);
-    }
-  }, [tenantId, channelId, fetchItems, fetchLatestSync]);
+    if (tid && cid) {
+      const init = async () => {
+        const existingData = await fetchItems();
+        const lastSync = await checkSyncStatus();
 
-  // Si falta información crítica, mostramos un estado de carga profesional
-  if (!tenantId || !channelId) {
+        // Si no hay productos y la última sync falló o no existe, disparamos automáticamente
+        if (existingData.length === 0 && (!lastSync || lastSync.status === 'failed' || lastSync.status === 'none')) {
+          triggerAutoImport();
+        }
+      };
+      init();
+    }
+  }, [tid, cid, fetchItems, checkSyncStatus, triggerAutoImport]);
+
+  // --- UI RENDER ---
+  if (!tid || !cid) {
     return (
-      <div className="min-h-screen bg-[#0f1115] flex flex-col items-center justify-center space-y-4">
-        <div className="h-12 w-12 border-4 border-orange-500/20 border-t-orange-500 rounded-full animate-spin" />
-        <p className="text-gray-500 font-mono text-[10px] tracking-[0.3em] uppercase">Sincronizando Identidad...</p>
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-gray-500 font-mono text-[10px] uppercase tracking-[0.5em]">
+        <div className="w-8 h-8 border-2 border-orange-500/20 border-t-orange-500 animate-spin rounded-full mb-4" />
+        Resolving_Identity_Context...
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#0f1115] text-white p-6 md:p-12">
-      <div className="max-w-7xl mx-auto">
-        
-        {/* HEADER DINÁMICO */}
-        <header className="flex flex-col md:flex-row justify-between items-end mb-12 gap-8 border-b border-white/5 pb-12">
-          <div className="space-y-4">
-            <h1 className="text-6xl font-black tracking-tighter italic">Meli_Sync</h1>
-            <div className="flex items-center gap-4">
-              <div className="flex flex-col">
-                <span className="text-[9px] text-gray-600 font-black uppercase tracking-widest">Organización</span>
-                <span className="text-sm font-mono text-white">ID_{tenantId}</span>
-              </div>
-              <div className="h-8 w-[1px] bg-white/10" />
-              <div className="flex flex-col">
-                <span className="text-[9px] text-gray-600 font-black uppercase tracking-widest">Canal_ML</span>
-                <span className="text-sm font-mono text-orange-500">{channelId}</span>
-              </div>
-            </div>
+    <div className="p-6 md:p-10 bg-[#0f1115] min-h-screen text-white">
+      <header className="flex justify-between items-end mb-12 border-b border-white/5 pb-10">
+        <div>
+          <h1 className="text-5xl font-black italic tracking-tighter text-white uppercase">Meli_Inventory</h1>
+          <div className="flex gap-4 mt-3">
+            <span className="text-[9px] font-mono text-gray-600 uppercase tracking-widest bg-white/5 px-2 py-1 rounded">TID: {tid}</span>
+            <span className="text-[9px] font-mono text-orange-500 uppercase tracking-widest bg-orange-500/10 px-2 py-1 rounded">CID: {cid}</span>
           </div>
-          
-          <button 
-            onClick={handleSync}
-            disabled={syncing || syncStatus?.status === 'processing'}
-            className={`group relative overflow-hidden px-12 py-5 rounded-2xl font-black transition-all ${
-              syncing || syncStatus?.status === 'processing'
-              ? "bg-gray-800 text-gray-500 cursor-not-allowed" 
-              : "bg-white text-black hover:bg-orange-500 hover:text-white"
-            }`}
-          >
-            <span className="relative z-10 tracking-widest">
-              {syncing || syncStatus?.status === 'processing' ? "EXECUTING_SYNC..." : "START_SYNC"}
-            </span>
-          </button>
-        </header>
-
-        {/* STATUS PANEL */}
-        {syncStatus && (
-          <div className="mb-12 p-1 rounded-[2rem] bg-gradient-to-r from-orange-500/20 to-transparent">
-            <div className="bg-[#161920] p-8 rounded-[1.9rem] flex items-center justify-between border border-white/5 shadow-2xl">
-              <div className="flex items-center gap-6">
-                <div className={`h-4 w-4 rounded-full shadow-[0_0_20px_rgba(255,255,255,0.1)] ${
-                  syncStatus.status === 'success' ? 'bg-green-500' : 'bg-orange-500 animate-pulse'
-                }`} />
-                <div>
-                  <p className="text-xs font-black uppercase tracking-[0.2em] text-gray-500">Último Reporte</p>
-                  <p className="text-lg font-bold text-white capitalize">{syncStatus.message}</p>
-                </div>
-              </div>
-              <div className="text-right">
-                <p className="text-[10px] font-mono text-gray-600 uppercase">Timestamp</p>
-                <p className="text-sm font-mono text-gray-400">{syncStatus.finished_at || 'Sync in progress'}</p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* DATA TABLE */}
-        <div className="bg-[#161920]/40 rounded-[3rem] border border-white/5 overflow-hidden backdrop-blur-3xl shadow-2xl">
-          <table className="w-full text-left">
-            <thead>
-              <tr className="bg-white/5 text-gray-500 text-[9px] uppercase tracking-[0.4em] font-black">
-                <th className="px-12 py-8">ML_UID</th>
-                <th className="px-12 py-8">Internal_SKU</th>
-                <th className="px-12 py-8 text-right">Market_Price</th>
-                <th className="px-12 py-8 text-center">Available_Qty</th>
-                <th className="px-12 py-8 text-right">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/5">
-              {loading && items.length === 0 ? (
-                <tr><td colSpan={5} className="py-40 text-center font-black text-gray-800 tracking-[1em] animate-pulse">FETCHING_DATABASE</td></tr>
-              ) : items.length === 0 ? (
-                <tr><td colSpan={5} className="py-40 text-center text-gray-700 italic uppercase tracking-[0.3em] font-bold">No hay registros para este canal</td></tr>
-              ) : (
-                items.map((item) => (
-                  <tr key={item.id} className="hover:bg-white/[0.02] transition-all group">
-                    <td className="px-12 py-7 font-mono text-xs text-gray-500 group-hover:text-orange-500 transition-colors">{item.external_id}</td>
-                    <td className="px-12 py-7 text-sm font-bold text-gray-400">{item.sku || "—"}</td>
-                    <td className="px-12 py-7 text-right font-black text-white italic text-base">${item.price.toLocaleString()}</td>
-                    <td className="px-12 py-7 text-center text-gray-400 font-mono text-sm">{item.stock}</td>
-                    <td className="px-12 py-7 text-right">
-                      <span className={`px-4 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border ${
-                        item.status === 'active' ? 'bg-green-500/10 text-green-500 border-green-500/20' : 'bg-red-500/10 text-red-500 border-red-500/20'
-                      }`}>
-                        {item.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
         </div>
+        <button 
+          onClick={triggerAutoImport}
+          className="bg-white text-black px-8 py-3 rounded-xl font-black text-xs tracking-widest hover:bg-orange-500 hover:text-white transition-all active:scale-95"
+        >
+          FORCE_EXTRACTION
+        </button>
+      </header>
+
+      {syncStatus?.status === 'processing' && (
+        <div className="mb-8 p-4 bg-orange-500/10 border border-orange-500/20 rounded-2xl animate-pulse">
+          <p className="text-orange-500 text-[10px] font-black uppercase tracking-widest">Sincronización en curso: Extrayendo productos desde Mercado Libre...</p>
+        </div>
+      )}
+
+      <div className="bg-[#161920]/60 rounded-[2.5rem] border border-white/5 overflow-hidden backdrop-blur-md">
+        <table className="w-full text-left">
+          <thead>
+            <tr className="text-[9px] text-gray-600 font-black uppercase tracking-[0.4em] bg-white/5">
+              <th className="px-10 py-8 text-white">External_UID</th>
+              <th className="px-10 py-8">SKU</th>
+              <th className="px-10 py-8 text-right">Market_Price</th>
+              <th className="px-10 py-8 text-center">Stock</th>
+              <th className="px-10 py-8 text-right">Status</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-white/5">
+            {loading ? (
+              <tr><td colSpan={5} className="py-20 text-center text-gray-800 font-black italic tracking-widest animate-pulse">CONNECTING_TO_DATABASE...</td></tr>
+            ) : items.length === 0 ? (
+              <tr><td colSpan={5} className="py-20 text-center text-gray-500 italic uppercase font-bold tracking-widest">No data available - Check logs</td></tr>
+            ) : (
+              items.map((item) => (
+                <tr key={item.id} className="hover:bg-white/[0.02] transition-colors group">
+                  <td className="px-10 py-6 font-mono text-xs text-gray-500 group-hover:text-orange-500">{item.external_id}</td>
+                  <td className="px-10 py-6 text-sm font-bold text-gray-400">{item.sku || "—"}</td>
+                  <td className="px-10 py-6 text-right font-black text-white italic text-base">${item.price.toLocaleString()}</td>
+                  <td className="px-10 py-6 text-center text-gray-400 font-mono">{item.stock}</td>
+                  <td className="px-10 py-6 text-right">
+                    <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${
+                      item.status === 'active' ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'
+                    }`}>
+                      {item.status}
+                    </span>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
       </div>
     </div>
   );
 }
 
-export default function ExternalItemsPage() {
+export default function Page() {
   return (
     <Suspense fallback={<div className="min-h-screen bg-[#0f1115]" />}>
-      <MercadoLibreContent />
+      <MercadoLibreInventoryContent />
     </Suspense>
   );
 }
