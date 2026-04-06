@@ -9,7 +9,7 @@ import {
   CreditCard,
 } from "lucide-react";
 
-const API_BASE = "https://oauth.goqconsultant.com";
+const API_BASE = "https://ctrlviewinventory.onrender.com";
 
 export default function OrdersPage() {
   const channelId = 1;

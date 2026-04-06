@@ -55,7 +55,7 @@ function MercadoLibreInventoryContent() {
     setLoading(true);
     try {
       // Importante: Verificá que esta URL devuelva los datos (es la que probamos en Swagger)
-      const response = await fetch(`https://oauth.goqconsultant.com/integrations/mercadolibre/items?tenant_id=${tid}&channel_id=${cid}`);
+      const response = await fetch(`https://ctrlviewinventory.onrender.com/integrations/mercadolibre/items?tenant_id=${tid}&channel_id=${cid}`);
       if (response.ok) {
         const data = await response.json();
         setItems(data);
@@ -72,7 +72,7 @@ function MercadoLibreInventoryContent() {
   const checkSyncStatus = useCallback(async () => {
     if (!tid || !cid) return null;
     try {
-      const response = await fetch(`https://oauth.goqconsultant.com/integrations/mercadolibre/import/latest?tenant_id=${tid}&channel_id=${cid}`);
+      const response = await fetch(`https://ctrlviewinventory.onrender.com/integrations/mercadolibre/import/latest?tenant_id=${tid}&channel_id=${cid}`);
       const data = await response.json();
       setSyncStatus(data);
       if (data.status === 'success') fetchItems(); // Si terminó bien, refrescamos la lista
@@ -83,7 +83,7 @@ function MercadoLibreInventoryContent() {
   const triggerAutoImport = useCallback(async () => {
     if (!tid || !cid) return;
     setSyncStatus({ status: 'processing' });
-    await fetch(`https://oauth.goqconsultant.com/integrations/mercadolibre/import/start?tenant_id=${tid}&channel_id=${cid}`, { method: 'POST' });
+    await fetch(`https://ctrlviewinventory.onrender.com/integrations/mercadolibre/import/start?tenant_id=${tid}&channel_id=${cid}`, { method: 'POST' });
     
     // Polling corto para actualizar el estado
     setTimeout(checkSyncStatus, 2000);
