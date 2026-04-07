@@ -1,6 +1,6 @@
 // app/services/auth.ts
 
-const API_URL = "https://oauth.goqconsultant.com";
+const API_URL = "https://api.mecca-bot-recepcion.com";
 
 export const authService = {
   /**
