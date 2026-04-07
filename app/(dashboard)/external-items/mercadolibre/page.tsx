@@ -30,23 +30,21 @@ function MercadoLibreInventoryContent() {
   });
 
   useEffect(() => {
-    // 1. Prioridad absoluta a la URL (esto es lo que viene de Swagger/Redirección)
-    const urlTid = searchParams.get('tenant_id');
-    const urlCid = searchParams.get('channel_id');
+  // 1. Intentamos obtener de la URL (útil para debug o redirecciones directas)
+  const urlTid = searchParams.get('tenant_id');
+  const urlCid = searchParams.get('channel_id');
 
-    if (urlTid && urlCid) {
-      setContext({ tid: urlTid, cid: urlCid });
-    } else {
-      // 2. Fallback solo si no está en la URL
-      const session = JSON.parse(localStorage.getItem('user_session') || '{}');
-      const mlChannel = session?.channels?.find((c: any) => c.type === 'mercadolibre')?.id;
-      
-      setContext({ 
-        tid: urlTid || session?.tenant_id || "25", // Hardcode temporal de rescate si todo falla
-        cid: urlCid || mlChannel || "68"           // Hardcode temporal de rescate
-      });
-    }
-  }, [searchParams]);
+  // 2. Obtenemos la sesión guardada al hacer login
+  const session = JSON.parse(localStorage.getItem('user_session') || '{}');
+  
+  // Buscamos el canal de Mercado Libre dentro de los canales del usuario
+  const mlChannel = session?.channels?.find((c: any) => c.type === 'mercadolibre')?.id;
+
+  setContext({ 
+    tid: urlTid || session?.tenant_id || null, 
+    cid: urlCid || mlChannel || null 
+  });
+}, [searchParams]);
 
   const { tid, cid } = context;
 
