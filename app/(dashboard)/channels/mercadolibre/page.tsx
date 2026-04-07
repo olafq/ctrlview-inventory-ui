@@ -20,12 +20,12 @@ export default function MercadoLibrePage() {
   const fetchData = async () => {
     try {
       // 1. Traer productos
-      const itemsRes = await fetch(`https://ctrlviewinventory.onrender.com/integrations/mercadolibre/items?tenant_id=${tenant_id}&channel_id=${channel_id}`);
+      const itemsRes = await fetch(`https://api.mecca-bot-recepcion.com/integrations/mercadolibre/items?tenant_id=${tenant_id}&channel_id=${channel_id}`);
       const itemsData = await itemsRes.json();
       setItems(itemsData);
 
       // 2. Traer estado de la importación
-      const statusRes = await fetch(`https://ctrlviewinventory.onrender.com/integrations/mercadolibre/import/latest?tenant_id=${tenant_id}&channel_id=${channel_id}`);
+      const statusRes = await fetch(`https://api.mecca-bot-recepcion.com/integrations/mercadolibre/import/latest?tenant_id=${tenant_id}&channel_id=${channel_id}`);
       const statusData = await statusRes.json();
       setImportStatus(statusData);
     } catch (err) {

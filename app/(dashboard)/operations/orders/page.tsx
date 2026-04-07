@@ -9,7 +9,7 @@ import {
   CreditCard,
 } from "lucide-react";
 
-const API_BASE = "https://ctrlviewinventory.onrender.com";
+const API_BASE = "https://api.mecca-bot-recepcion.com";
 
 export default function OrdersPage() {
   const channelId = 1;
