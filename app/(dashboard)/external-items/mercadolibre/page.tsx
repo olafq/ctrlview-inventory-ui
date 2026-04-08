@@ -30,14 +30,15 @@ function MercadoLibreInventoryContent() {
   });
 
   useEffect(() => {
-  // 1. Intentamos obtener de la URL (útil para debug o redirecciones directas)
+  const sessionStr = localStorage.getItem('user_session');
+  console.log("DEBUG - Sesión recuperada:", sessionStr); // Mirá esto en la consola
+  
+  const session = JSON.parse(sessionStr || '{}');
+  
   const urlTid = searchParams.get('tenant_id');
   const urlCid = searchParams.get('channel_id');
 
-  // 2. Obtenemos la sesión guardada al hacer login
-  const session = JSON.parse(localStorage.getItem('user_session') || '{}');
-  
-  // Buscamos el canal de Mercado Libre dentro de los canales del usuario
+  // Buscamos el canal de ML dinámicamente
   const mlChannel = session?.channels?.find((c: any) => c.type === 'mercadolibre')?.id;
 
   setContext({ 
