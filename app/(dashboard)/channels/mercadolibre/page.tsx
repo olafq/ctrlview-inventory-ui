@@ -3,165 +3,145 @@
 import { useEffect, useState, useCallback, Suspense } from "react";
 import { useSearchParams } from 'next/navigation';
 
-interface ImportStatus {
-  status: string;
-  inserted: number;
-  updated: number;
-}
-
-// 1. Movemos toda la lógica a un componente interno
 function MercadoLibreInventoryContent() {
   const searchParams = useSearchParams();
   const [items, setItems] = useState([]);
-  const [importStatus, setImportStatus] = useState<ImportStatus | null>(null);
   const [loading, setLoading] = useState(true);
+  const [errorInfo, setErrorInfo] = useState<string | null>(null);
 
   const [context, setContext] = useState<{ tid: string | null; cid: string | null }>({
     tid: null,
     cid: null
   });
 
-  useEffect(() => {
-    // Verificamos que estamos en el cliente antes de tocar localStorage
-    if (typeof window !== "undefined") {
-      const urlTid = searchParams.get('tenant_id');
-      const urlCid = searchParams.get('channel_id');
-
-      const sessionStr = localStorage.getItem('user_session');
-      const session = JSON.parse(sessionStr || '{}');
-      
-      const mlChannel = session?.channels?.find((c: any) => c.type === 'mercadolibre')?.id;
-
-      setContext({ 
-        tid: urlTid || session?.tenant_id || null, 
-        cid: urlCid || mlChannel || null 
-      });
-    }
-  }, [searchParams]);
-
-  const { tid, cid } = context;
-
-  const fetchData = useCallback(async () => {
-    if (!tid || !cid) return;
-    
+  // FUNCIÓN PARA RECUPERAR IDENTIDAD DESDE EL TOKEN
+  const resolveIdentity = useCallback(async () => {
     try {
-      const itemsRes = await fetch(`https://api.mecca-bot-recepcion.com/integrations/mercadolibre/items?tenant_id=${tid}&channel_id=${cid}`);
-      if (itemsRes.ok) {
-        const itemsData = await itemsRes.json();
-        setItems(itemsData);
+      const token = localStorage.getItem("sync_token");
+      if (!token) {
+        setErrorInfo("No hay token de acceso. Por favor, inicia sesión.");
+        return;
       }
 
-      const statusRes = await fetch(`https://api.mecca-bot-recepcion.com/integrations/mercadolibre/import/latest?tenant_id=${tid}&channel_id=${cid}`);
-      if (statusRes.ok) {
-        const statusData = await statusRes.json();
-        setImportStatus(statusData);
+      // 1. Consultamos al backend quién es este usuario usando el token
+      const res = await fetch("https://api.mecca-bot-recepcion.com/auth/me", {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+
+      if (!res.ok) throw new Error("Error al validar identidad");
+
+      const userData = await res.json();
+      
+      // 2. Buscamos el canal de Mercado Libre
+      const mlChannel = userData.channels?.find((c: any) => c.type === 'mercadolibre')?.id;
+      
+      if (userData.tenant_id && mlChannel) {
+        setContext({ 
+          tid: userData.tenant_id.toString(), 
+          cid: mlChannel.toString() 
+        });
+        // Opcional: Guardamos en caché para la próxima
+        localStorage.setItem('user_session', JSON.stringify(userData));
+      } else {
+        setErrorInfo("El usuario no tiene un Tenant o Canal de Mercado Libre asignado.");
       }
     } catch (err) {
-      console.error("Error fetching data:", err);
+      console.error("Identity Error:", err);
+      setErrorInfo("Error de conexión con el servidor de identidad.");
+    }
+  }, []);
+
+  useEffect(() => {
+    // Si tenemos IDs en la URL, los usamos. Si no, resolvemos identidad.
+    const urlTid = searchParams.get('tenant_id');
+    const urlCid = searchParams.get('channel_id');
+
+    if (urlTid && urlCid) {
+      setContext({ tid: urlTid, cid: urlCid });
+    } else {
+      resolveIdentity();
+    }
+  }, [searchParams, resolveIdentity]);
+
+  // CARGA DE PRODUCTOS
+  const fetchData = useCallback(async () => {
+    const { tid, cid } = context;
+    if (!tid || !cid) return;
+
+    setLoading(true);
+    try {
+      const response = await fetch(`https://api.mecca-bot-recepcion.com/integrations/mercadolibre/items?tenant_id=${tid}&channel_id=${cid}`);
+      if (response.ok) {
+        const data = await response.json();
+        setItems(data);
+      }
+    } catch (err) {
+      console.error("Fetch error:", err);
     } finally {
       setLoading(false);
     }
-  }, [tid, cid]);
+  }, [context]);
 
   useEffect(() => {
-    if (tid && cid) {
-      fetchData();
-    }
-  }, [tid, cid, fetchData]);
+    if (context.tid && context.cid) fetchData();
+  }, [context, fetchData]);
 
-  useEffect(() => {
-    let interval: any;
-    if (importStatus?.status === "pending" || importStatus?.status === "queued" || importStatus?.status === "processing") {
-      interval = setInterval(fetchData, 5000);
-    }
-    return () => clearInterval(interval);
-  }, [importStatus?.status, fetchData]);
-
-  if (!tid || !cid) {
+  // UI DE ERROR
+  if (errorInfo) {
     return (
-      <div className="p-20 text-center text-gray-400 font-mono text-xs animate-pulse">
-        RESOLVIENDO_CONTEXTO_DE_IDENTIDAD...
+      <div className="p-20 text-center bg-[#0f1115] min-h-screen">
+        <div className="bg-red-500/10 border border-red-500/50 p-6 rounded-2xl inline-block">
+          <p className="text-red-500 font-mono text-xs uppercase tracking-widest">{errorInfo}</p>
+          <button onClick={() => window.location.href = '/auth/login'} className="mt-4 text-[10px] bg-white text-black px-4 py-2 rounded-lg font-bold uppercase">Volver al Login</button>
+        </div>
+      </div>
+    );
+  }
+
+  // UI DE CARGA
+  if (!context.tid || !context.cid) {
+    return (
+      <div className="p-20 text-center bg-[#0f1115] min-h-screen text-gray-500 font-mono text-xs animate-pulse tracking-[0.3em]">
+        VERIFICANDO_SISTEMA_DE_IDENTIDAD...
       </div>
     );
   }
 
   return (
-    <div className="p-6 space-y-4 bg-[#f8fafc] min-h-screen">
-      {/* BANNER DE SINCRONIZACIÓN */}
-      {(importStatus?.status === "pending" || importStatus?.status === "queued" || importStatus?.status === "processing") && (
-        <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-4 animate-pulse rounded-r-lg">
-          <div className="flex items-center">
-            <div className="flex-shrink-0 text-blue-500">
-              <svg className="h-5 w-5 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83" strokeWidth="2" strokeLinecap="round"/>
-              </svg>
-            </div>
-            <div className="ml-3">
-              <p className="text-sm text-blue-700 font-medium">
-                Sincronizando con Mercado Libre...
-                <span className="ml-2 text-xs font-normal">
-                  ({importStatus.inserted || 0} productos procesados)
-                </span>
-              </p>
-            </div>
-          </div>
+    <div className="p-10 bg-[#0f1115] min-h-screen text-white">
+      <header className="mb-12 border-b border-white/5 pb-8">
+        <h1 className="text-5xl font-black italic tracking-tighter text-orange-500">Meli_Inventory</h1>
+        <div className="flex gap-4 mt-2">
+          <span className="text-[9px] font-mono text-gray-500">TENANT_{context.tid}</span>
+          <span className="text-[9px] font-mono text-gray-500">CHANNEL_{context.cid}</span>
         </div>
-      )}
+      </header>
 
-      {/* TABLA DE PRODUCTOS */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-white text-gray-800">
-          <div>
-            <h2 className="font-bold">Inventario Mercado Libre</h2>
-            <p className="text-[10px] text-gray-400 uppercase tracking-widest mt-1">Tenant: {tid}</p>
-          </div>
-          <span className="px-2 py-1 bg-orange-50 text-orange-600 text-[10px] font-black rounded border border-orange-100">
-            CANAL ID: {cid}
-          </span>
-        </div>
-        
+      <div className="bg-[#161920] border border-white/5 rounded-[2rem] overflow-hidden shadow-2xl">
         {loading ? (
-          <div className="p-20 text-center text-gray-400 italic">Cargando base de datos...</div>
+          <div className="p-32 text-center text-gray-700 font-black italic tracking-widest animate-pulse">EXTRACTING_DATA...</div>
         ) : items.length > 0 ? (
-          <table className="w-full text-sm text-left">
-            <thead className="bg-gray-50 text-gray-500 uppercase text-[10px] font-bold">
-              <tr>
-                <th className="px-6 py-3">ML ID</th>
-                <th className="px-6 py-3">SKU</th>
-                <th className="px-6 py-3 text-right">Precio</th>
-                <th className="px-6 py-3 text-center">Stock</th>
-                <th className="px-6 py-3 text-center">Estado</th>
+          <table className="w-full text-left">
+            <thead>
+              <tr className="text-[10px] text-gray-600 font-black uppercase tracking-[0.4em] bg-white/5">
+                <th className="px-10 py-6">External_ID</th>
+                <th className="px-10 py-6 text-right">Price</th>
+                <th className="px-10 py-6 text-center">Stock</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-white/5">
               {items.map((item: any) => (
-                <tr key={item.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-6 py-4 font-mono text-xs text-blue-600">
-                    {item.external_item_id || item.external_id}
-                  </td>
-                  <td className="px-6 py-4 font-medium text-gray-700">
-                    {item.external_sku || item.sku || "—"}
-                  </td>
-                  <td className="px-6 py-4 text-right font-bold text-gray-900">
-                    ${item.price?.toLocaleString() || '0'}
-                  </td>
-                  <td className="px-6 py-4 text-center font-semibold text-gray-600">
-                    {item.stock ?? 0}
-                  </td>
-                  <td className="px-6 py-4 text-center">
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                      item.status === 'active' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'
-                    }`}>
-                      {item.status}
-                    </span>
-                  </td>
+                <tr key={item.id} className="hover:bg-white/[0.02] transition-colors group">
+                  <td className="px-10 py-5 font-mono text-xs text-gray-500 group-hover:text-orange-500">{item.external_item_id}</td>
+                  <td className="px-10 py-5 text-right font-black text-white italic">${item.price?.toLocaleString()}</td>
+                  <td className="px-10 py-5 text-center text-gray-400 font-mono">{item.stock}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         ) : (
-          <div className="p-20 text-center">
-            <p className="text-gray-400 italic text-sm">No se encontraron productos vinculados.</p>
+          <div className="p-32 text-center text-gray-600 font-bold uppercase tracking-widest italic">
+            No se detectaron productos en este canal.
           </div>
         )}
       </div>
@@ -169,10 +149,9 @@ function MercadoLibreInventoryContent() {
   );
 }
 
-// 2. Exportamos la página envuelta en Suspense (Obligatorio para useSearchParams en Next.js)
-export default function MercadoLibrePage() {
+export default function Page() {
   return (
-    <Suspense fallback={<div className="p-20 text-center text-gray-400">Cargando interfaz...</div>}>
+    <Suspense fallback={null}>
       <MercadoLibreInventoryContent />
     </Suspense>
   );
