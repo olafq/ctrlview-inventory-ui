@@ -15,7 +15,7 @@ export default function SettingsPage() {
   const [currentTenantId, setCurrentTenantId] = useState<number | null>(null);
   const [mlChannelId, setMlChannelId] = useState<number | null>(null);
 
-  const API_BASE = "https://ctrlviewinventory.onrender.com";
+  const API_BASE = "https://api.mecca-bot-recepcion.com";
 
   // Función para verificar el estado de la conexión con MercadoLibre
   const checkStatus = useCallback(async (tId: number, cId: number) => {
