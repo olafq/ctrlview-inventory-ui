@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, Suspense } from "react";
 import { useSearchParams } from 'next/navigation';
 
 interface ImportStatus {
@@ -9,52 +9,48 @@ interface ImportStatus {
   updated: number;
 }
 
-export default function MercadoLibrePage() {
+// 1. Movemos toda la lógica a un componente interno
+function MercadoLibreInventoryContent() {
   const searchParams = useSearchParams();
   const [items, setItems] = useState([]);
   const [importStatus, setImportStatus] = useState<ImportStatus | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // ESTADO PARA IDs DINÁMICOS
   const [context, setContext] = useState<{ tid: string | null; cid: string | null }>({
     tid: null,
     cid: null
   });
 
-  // 1. RESOLVER IDENTIDAD (Tenant y Channel)
   useEffect(() => {
-    // Intentamos obtener de la URL primero
-    const urlTid = searchParams.get('tenant_id');
-    const urlCid = searchParams.get('channel_id');
+    // Verificamos que estamos en el cliente antes de tocar localStorage
+    if (typeof window !== "undefined") {
+      const urlTid = searchParams.get('tenant_id');
+      const urlCid = searchParams.get('channel_id');
 
-    // Obtenemos la sesión guardada en el Login
-    const sessionStr = localStorage.getItem('user_session');
-    const session = JSON.parse(sessionStr || '{}');
-    
-    // Buscamos el canal de Mercado Libre dentro de los canales del usuario
-    const mlChannel = session?.channels?.find((c: any) => c.type === 'mercadolibre')?.id;
+      const sessionStr = localStorage.getItem('user_session');
+      const session = JSON.parse(sessionStr || '{}');
+      
+      const mlChannel = session?.channels?.find((c: any) => c.type === 'mercadolibre')?.id;
 
-    setContext({ 
-      tid: urlTid || session?.tenant_id || null, 
-      cid: urlCid || mlChannel || null 
-    });
+      setContext({ 
+        tid: urlTid || session?.tenant_id || null, 
+        cid: urlCid || mlChannel || null 
+      });
+    }
   }, [searchParams]);
 
   const { tid, cid } = context;
 
-  // 2. FUNCIÓN DE CARGA (Usando los IDs dinámicos)
   const fetchData = useCallback(async () => {
     if (!tid || !cid) return;
     
     try {
-      // Traer productos
       const itemsRes = await fetch(`https://api.mecca-bot-recepcion.com/integrations/mercadolibre/items?tenant_id=${tid}&channel_id=${cid}`);
       if (itemsRes.ok) {
         const itemsData = await itemsRes.json();
         setItems(itemsData);
       }
 
-      // Traer estado de la importación
       const statusRes = await fetch(`https://api.mecca-bot-recepcion.com/integrations/mercadolibre/import/latest?tenant_id=${tid}&channel_id=${cid}`);
       if (statusRes.ok) {
         const statusData = await statusRes.json();
@@ -73,7 +69,6 @@ export default function MercadoLibrePage() {
     }
   }, [tid, cid, fetchData]);
 
-  // Polling si hay una importación activa
   useEffect(() => {
     let interval: any;
     if (importStatus?.status === "pending" || importStatus?.status === "queued" || importStatus?.status === "processing") {
@@ -82,7 +77,6 @@ export default function MercadoLibrePage() {
     return () => clearInterval(interval);
   }, [importStatus?.status, fetchData]);
 
-  // 3. RENDER DE SEGURIDAD (Si no hay contexto)
   if (!tid || !cid) {
     return (
       <div className="p-20 text-center text-gray-400 font-mono text-xs animate-pulse">
@@ -97,8 +91,8 @@ export default function MercadoLibrePage() {
       {(importStatus?.status === "pending" || importStatus?.status === "queued" || importStatus?.status === "processing") && (
         <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-4 animate-pulse rounded-r-lg">
           <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <svg className="h-5 w-5 text-blue-500 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <div className="flex-shrink-0 text-blue-500">
+              <svg className="h-5 w-5 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                 <path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83" strokeWidth="2" strokeLinecap="round"/>
               </svg>
             </div>
@@ -116,9 +110,9 @@ export default function MercadoLibrePage() {
 
       {/* TABLA DE PRODUCTOS */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-white">
+        <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-white text-gray-800">
           <div>
-            <h2 className="font-bold text-gray-800">Inventario Mercado Libre</h2>
+            <h2 className="font-bold">Inventario Mercado Libre</h2>
             <p className="text-[10px] text-gray-400 uppercase tracking-widest mt-1">Tenant: {tid}</p>
           </div>
           <span className="px-2 py-1 bg-orange-50 text-orange-600 text-[10px] font-black rounded border border-orange-100">
@@ -167,11 +161,19 @@ export default function MercadoLibrePage() {
           </table>
         ) : (
           <div className="p-20 text-center">
-            <p className="text-gray-400 italic">No se encontraron productos para el Canal {cid} en el Tenant {tid}.</p>
-            <p className="text-[10px] text-gray-300 mt-2">Verifica la conexión en Configuración.</p>
+            <p className="text-gray-400 italic text-sm">No se encontraron productos vinculados.</p>
           </div>
         )}
       </div>
     </div>
+  );
+}
+
+// 2. Exportamos la página envuelta en Suspense (Obligatorio para useSearchParams en Next.js)
+export default function MercadoLibrePage() {
+  return (
+    <Suspense fallback={<div className="p-20 text-center text-gray-400">Cargando interfaz...</div>}>
+      <MercadoLibreInventoryContent />
+    </Suspense>
   );
 }
