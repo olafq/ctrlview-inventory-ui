@@ -2,11 +2,12 @@
 import { useEffect, useState, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 
-// --- INTERFACES AJUSTADAS AL BACKEND ---
+// --- INTERFACES ACTUALIZADAS CON EL NUEVO CAMPO ---
 interface ExternalItem {
   id: number;
-  external_item_id: string; // Cambiado para coincidir con el backend
-  external_sku: string | null; // Cambiado para coincidir con el backend
+  external_item_id: string;
+  external_title: string | null; // Nuevo campo del backend
+  external_sku: string | null;
   price: number;
   stock: number;
   status: string;
@@ -30,22 +31,20 @@ function MercadoLibreInventoryContent() {
   });
 
   useEffect(() => {
-  const sessionStr = localStorage.getItem('user_session');
-  console.log("DEBUG - Sesión recuperada:", sessionStr); // Mirá esto en la consola
-  
-  const session = JSON.parse(sessionStr || '{}');
-  
-  const urlTid = searchParams.get('tenant_id');
-  const urlCid = searchParams.get('channel_id');
+    const sessionStr = localStorage.getItem('user_session');
+    const session = JSON.parse(sessionStr || '{}');
+    
+    const urlTid = searchParams.get('tenant_id');
+    const urlCid = searchParams.get('channel_id');
 
-  // Buscamos el canal de ML dinámicamente
-  const mlChannel = session?.channels?.find((c: any) => c.type === 'mercadolibre')?.id;
+    // Buscamos el canal de ML dinámicamente
+    const mlChannel = session?.channels?.find((c: any) => c.type === 'mercadolibre')?.id;
 
-  setContext({ 
-    tid: urlTid || session?.tenant_id || null, 
-    cid: urlCid || mlChannel || null 
-  });
-}, [searchParams]);
+    setContext({ 
+      tid: urlTid || session?.tenant_id || null, 
+      cid: urlCid || mlChannel || null 
+    });
+  }, [searchParams]);
 
   const { tid, cid } = context;
 
@@ -53,7 +52,6 @@ function MercadoLibreInventoryContent() {
     if (!tid || !cid) return [];
     setLoading(true);
     try {
-      // Importante: Verificá que esta URL devuelva los datos (es la que probamos en Swagger)
       const response = await fetch(`https://api.mecca-bot-recepcion.com/integrations/mercadolibre/items?tenant_id=${tid}&channel_id=${cid}`);
       if (response.ok) {
         const data = await response.json();
@@ -74,7 +72,7 @@ function MercadoLibreInventoryContent() {
       const response = await fetch(`https://api.mecca-bot-recepcion.com/integrations/mercadolibre/import/latest?tenant_id=${tid}&channel_id=${cid}`);
       const data = await response.json();
       setSyncStatus(data);
-      if (data.status === 'success') fetchItems(); // Si terminó bien, refrescamos la lista
+      if (data.status === 'success') fetchItems(); 
       return data;
     } catch (e) { return null; }
   }, [tid, cid, fetchItems]);
@@ -95,7 +93,6 @@ function MercadoLibreInventoryContent() {
     }
   }, [tid, cid, fetchItems, checkSyncStatus]);
 
-  // --- UI RENDER ---
   if (!tid || !cid) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-gray-500 font-mono text-[10px] uppercase tracking-[0.5em]">
@@ -117,7 +114,8 @@ function MercadoLibreInventoryContent() {
         </div>
         <button 
           onClick={triggerAutoImport}
-          className="bg-white text-black px-8 py-3 rounded-xl font-black text-xs tracking-widest hover:bg-orange-500 hover:text-white transition-all active:scale-95"
+          disabled={syncStatus?.status === 'processing'}
+          className="bg-white text-black px-8 py-3 rounded-xl font-black text-xs tracking-widest hover:bg-orange-500 hover:text-white transition-all active:scale-95 disabled:opacity-50"
         >
           {syncStatus?.status === 'processing' ? 'SYNCING...' : 'FORCE_EXTRACTION'}
         </button>
@@ -127,8 +125,8 @@ function MercadoLibreInventoryContent() {
         <table className="w-full text-left">
           <thead>
             <tr className="text-[9px] text-gray-600 font-black uppercase tracking-[0.4em] bg-white/5">
-              <th className="px-10 py-8 text-white">External_UID</th>
-              <th className="px-10 py-8">SKU</th>
+              <th className="px-10 py-8 text-white">Product_Title</th>
+              <th className="px-10 py-8">SKU / Ext_ID</th>
               <th className="px-10 py-8 text-right">Market_Price</th>
               <th className="px-10 py-8 text-center">Stock</th>
               <th className="px-10 py-8 text-right">Status</th>
@@ -142,8 +140,19 @@ function MercadoLibreInventoryContent() {
             ) : (
               items.map((item) => (
                 <tr key={item.id} className="hover:bg-white/[0.02] transition-colors group">
-                  <td className="px-10 py-6 font-mono text-xs text-gray-500 group-hover:text-orange-500">{item.external_item_id}</td>
-                  <td className="px-10 py-6 text-sm font-bold text-gray-400">{item.external_sku || "—"}</td>
+                  <td className="px-10 py-6">
+                    <div className="flex flex-col">
+                      <span className="text-sm font-bold text-white group-hover:text-orange-500 transition-colors uppercase tracking-tight">
+                        {item.external_title || "PRODUCT_WITHOUT_NAME"}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="px-10 py-6">
+                    <div className="flex flex-col gap-1">
+                      <span className="text-sm font-bold text-gray-400">{item.external_sku || "—"}</span>
+                      <span className="text-[9px] font-mono text-gray-600 uppercase tracking-tighter">{item.external_item_id}</span>
+                    </div>
+                  </td>
                   <td className="px-10 py-6 text-right font-black text-white italic text-base">${item.price.toLocaleString()}</td>
                   <td className="px-10 py-6 text-center text-gray-400 font-mono">{item.stock}</td>
                   <td className="px-10 py-6 text-right">
