@@ -28,7 +28,7 @@ function MercadoLibreInventoryContent() {
     try {
       const token = localStorage.getItem("sync_token");
       if (!token) {
-        setErrorInfo("No hay token de acceso. Por favor, inicia sesión.");
+        setErrorInfo("No hay token de acceso.");
         return;
       }
 
@@ -43,10 +43,10 @@ function MercadoLibreInventoryContent() {
       if (userData.tenant_id && mlChannel) {
         setContext({ tid: userData.tenant_id.toString(), cid: mlChannel.toString() });
       } else {
-        setErrorInfo("Sin Tenant o Canal de Mercado Libre asignado.");
+        setErrorInfo("Sin datos de acceso válidos.");
       }
     } catch (err) {
-      setErrorInfo("Error de conexión con el servidor.");
+      setErrorInfo("Error de conexión.");
     }
   }, []);
 
@@ -88,92 +88,89 @@ function MercadoLibreInventoryContent() {
     return (
       <div className="flex h-screen items-center justify-center bg-[#090a0c]">
         <div className="text-center">
-          <div className="w-10 h-10 border-2 border-orange-500/30 border-t-orange-500 animate-spin rounded-full mx-auto mb-4" />
-          <p className="text-[10px] font-mono text-gray-500 uppercase tracking-[0.5em]">Authenticating_System...</p>
+          <div className="w-8 h-8 border-2 border-orange-500/20 border-t-orange-500 animate-spin rounded-full mx-auto mb-4" />
+          <p className="text-[9px] font-mono text-gray-600 uppercase tracking-[0.5em]">System_Initializing...</p>
         </div>
       </div>
     );
   }
 
   return (
-    // Agregamos w-full y max-w-screen-2xl para que no empuje el sidebar
-    <div className="w-full min-h-screen bg-[#090a0c] text-white p-4 md:p-8 lg:p-12 overflow-x-hidden">
+    /* ELIMINACIÓN DE MARGEN BLANCO: w-full y bg-[#090a0c] sin paddings restrictivos en el root */
+    <div className="w-full min-h-screen bg-[#090a0c] text-white overflow-x-hidden border-none">
       
-      {/* Header Estilo Dashboard Pro */}
-      <header className="max-w-7xl mx-auto mb-12 flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
-        <div className="space-y-2">
-          <div className="flex items-center gap-3">
-            <div className="w-2 h-8 bg-orange-500 rounded-full shadow-[0_0_15px_rgba(249,115,22,0.5)]" />
-            <h1 className="text-4xl md:text-6xl font-black italic tracking-tighter uppercase">
-              Meli<span className="text-orange-500">_</span>Inventory
-            </h1>
-          </div>
-          <div className="flex gap-2">
-            <span className="px-3 py-1 rounded-md bg-white/5 border border-white/10 text-[9px] font-mono text-gray-500 uppercase tracking-widest">TID_{context.tid}</span>
-            <span className="px-3 py-1 rounded-md bg-orange-500/10 border border-orange-500/20 text-[9px] font-mono text-orange-400 uppercase tracking-widest">CID_{context.cid}</span>
-          </div>
-        </div>
+      {/* Contenedor principal con padding interno para el contenido */}
+      <div className="p-6 md:p-12 lg:p-16 max-w-[1600px]">
         
-        <button 
-          onClick={fetchData}
-          className="group relative overflow-hidden bg-white text-black px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all hover:scale-105 active:scale-95 shadow-[0_20px_40px_rgba(255,255,255,0.1)]"
-        >
-          <span className="relative z-10 group-hover:text-orange-600 transition-colors">Force_Sync_Data</span>
-          <div className="absolute inset-0 bg-gradient-to-r from-orange-50 to-white opacity-0 group-hover:opacity-100 transition-opacity" />
-        </button>
-      </header>
-
-      {/* Contenedor de Tabla Glassmorphism */}
-      <main className="max-w-7xl mx-auto">
-        <div className="relative group">
-          {/* Brillo de fondo sutil */}
-          <div className="absolute -inset-1 bg-gradient-to-r from-orange-500/20 to-transparent rounded-[2.5rem] blur opacity-25 group-hover:opacity-40 transition duration-1000"></div>
+        {/* Header Estilo Pro con el logo MELI_INVENTORY */}
+        <header className="mb-14 flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
+          <div className="space-y-4">
+            <div className="flex items-center gap-4">
+              <div className="w-1.5 h-10 bg-orange-500 rounded-full shadow-[0_0_20px_rgba(249,115,22,0.6)]" />
+              <h1 className="text-5xl md:text-7xl font-black italic tracking-tighter uppercase leading-none">
+                MELI<span className="text-orange-500 font-light">_</span>INVENTORY
+              </h1>
+            </div>
+            <div className="flex gap-2 ml-6">
+              <span className="px-3 py-1 rounded-md bg-white/5 border border-white/10 text-[9px] font-mono text-gray-500 uppercase tracking-widest italic">TID_{context.tid}</span>
+              <span className="px-3 py-1 rounded-md bg-orange-500/10 border border-orange-500/20 text-[9px] font-mono text-orange-400 uppercase tracking-widest font-bold italic">CID_{context.cid}</span>
+            </div>
+          </div>
           
-          <div className="relative bg-[#11141b]/80 border border-white/5 rounded-[2.5rem] overflow-hidden backdrop-blur-3xl shadow-2xl">
+          <button 
+            onClick={fetchData}
+            className="group relative overflow-hidden bg-white text-black px-10 py-4 rounded-xl font-black text-[10px] uppercase tracking-[0.3em] transition-all hover:scale-105 active:scale-95 shadow-[0_15px_30px_rgba(255,255,255,0.05)]"
+          >
+            <span className="relative z-10 group-hover:text-orange-600 transition-colors">FORCE_SYNC_DATA</span>
+            <div className="absolute inset-0 bg-gradient-to-r from-orange-50 to-white opacity-0 group-hover:opacity-100 transition-opacity" />
+          </button>
+        </header>
+
+        {/* Main Content Area */}
+        <main className="relative">
+          <div className="bg-[#11141b]/60 border border-white/5 rounded-[2.5rem] overflow-hidden backdrop-blur-3xl shadow-2xl">
             {loading ? (
-              <div className="py-40 text-center">
-                <p className="text-[11px] font-mono text-gray-600 animate-pulse tracking-[0.8em] uppercase">Fetching_Master_Records</p>
+              <div className="py-48 text-center">
+                <p className="text-[10px] font-mono text-gray-600 animate-pulse tracking-[1em] uppercase">Fetching_Master_Data</p>
               </div>
             ) : items.length > 0 ? (
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
                     <tr className="bg-white/[0.02]">
-                      <th className="px-8 py-8 text-[10px] font-black uppercase tracking-[0.3em] text-gray-500">Product_Details</th>
-                      <th className="px-8 py-8 text-[10px] font-black uppercase tracking-[0.3em] text-gray-500">Identifiers</th>
-                      <th className="px-8 py-8 text-[10px] font-black uppercase tracking-[0.3em] text-gray-500 text-right">Pricing</th>
-                      <th className="px-8 py-8 text-[10px] font-black uppercase tracking-[0.3em] text-gray-500 text-center">Availability</th>
+                      <th className="px-10 py-10 text-[10px] font-black uppercase tracking-[0.4em] text-gray-600 border-b border-white/5">PRODUCT_DETAILS</th>
+                      <th className="px-10 py-10 text-[10px] font-black uppercase tracking-[0.4em] text-gray-600 border-b border-white/5">IDENTIFIERS</th>
+                      <th className="px-10 py-10 text-[10px] font-black uppercase tracking-[0.4em] text-gray-600 border-b border-white/5 text-right">PRICING</th>
+                      <th className="px-10 py-10 text-[10px] font-black uppercase tracking-[0.4em] text-gray-600 border-b border-white/5 text-center">AVAILABILITY</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/5">
                     {items.map((item) => (
-                      <tr key={item.id} className="group/row hover:bg-white/[0.03] transition-all duration-300">
-                        <td className="px-8 py-7">
-                          <div className="flex items-center gap-4">
-                            <div className="w-1 h-10 bg-transparent group-hover/row:bg-orange-500 transition-all rounded-full" />
-                            <span className="text-sm font-bold text-gray-200 group-hover/row:text-white transition-colors uppercase leading-tight tracking-tight max-w-xs lg:max-w-md block">
-                              {item.external_title || "Unlabeled_Product"}
-                            </span>
-                          </div>
+                      <tr key={item.id} className="group/row hover:bg-white/[0.03] transition-all duration-500">
+                        <td className="px-10 py-8">
+                          <span className="text-[14px] font-bold text-gray-200 group-hover/row:text-white transition-colors uppercase leading-tight tracking-tight block max-w-sm lg:max-w-md italic">
+                            {item.external_title || "UNLABELED_ITEM"}
+                          </span>
                         </td>
-                        <td className="px-8 py-7">
-                          <div className="flex flex-col gap-1.5">
+                        <td className="px-10 py-8">
+                          <div className="flex flex-col gap-2">
                             <div className="flex items-center gap-2">
-                              <span className="text-[10px] font-mono text-gray-400 bg-white/5 px-2 py-0.5 rounded border border-white/5">SKU</span>
-                              <span className="text-[11px] font-bold text-gray-300">{item.external_sku || "—"}</span>
+                              <span className="text-[8px] font-black text-orange-500/60 border border-orange-500/20 px-1.5 py-0.5 rounded italic">SKU</span>
+                              <span className="text-[11px] font-bold text-gray-400 font-mono tracking-tighter">{item.external_sku || "—"}</span>
                             </div>
-                            <span className="text-[9px] font-mono text-gray-600 uppercase tracking-tighter opacity-60">ID: {item.external_item_id}</span>
+                            <span className="text-[9px] font-mono text-gray-700 uppercase">ML_ID: {item.external_item_id}</span>
                           </div>
                         </td>
-                        <td className="px-8 py-7 text-right font-black italic text-lg text-white group-hover/row:text-orange-400 transition-colors">
-                          ${item.price?.toLocaleString('es-AR')}
+                        <td className="px-10 py-8 text-right font-black italic text-xl text-white group-hover/row:text-orange-400 transition-all">
+                          <span className="text-orange-500 text-sm mr-1.5 tracking-tighter">$</span>
+                          {item.price?.toLocaleString('es-AR')}
                         </td>
-                        <td className="px-8 py-7 text-center">
-                          <div className="inline-flex flex-col items-center">
-                            <span className={`text-sm font-mono font-bold ${item.stock === 0 ? 'text-red-500/60' : 'text-orange-500'}`}>
+                        <td className="px-10 py-8 text-center">
+                          <div className="inline-flex flex-col items-center bg-white/[0.02] border border-white/5 px-4 py-2 rounded-2xl group-hover/row:border-orange-500/20 transition-all">
+                            <span className={`text-lg font-mono font-black ${item.stock === 0 ? 'text-red-500/40' : 'text-orange-500'}`}>
                               {item.stock.toString().padStart(2, '0')}
                             </span>
-                            <span className="text-[8px] font-mono text-gray-700 uppercase tracking-tighter">Units</span>
+                            <span className="text-[7px] font-black text-gray-700 uppercase tracking-tighter">UNITS</span>
                           </div>
                         </td>
                       </tr>
@@ -182,21 +179,17 @@ function MercadoLibreInventoryContent() {
                 </table>
               </div>
             ) : (
-              <div className="py-40 text-center space-y-4">
-                <p className="text-gray-600 font-bold uppercase tracking-[0.4em]">Empty_Inventory</p>
-                <p className="text-[10px] text-gray-800 uppercase">Verify your Mercado Libre connection.</p>
-              </div>
+              <div className="py-48 text-center italic text-gray-700 font-bold uppercase tracking-widest opacity-40">Zero_Items_Found</div>
             )}
           </div>
-        </div>
-      </main>
+        </main>
 
-      {/* Footer Minimalista */}
-      <footer className="max-w-7xl mx-auto mt-12 flex justify-between items-center opacity-30 group">
-        <p className="text-[9px] font-mono uppercase tracking-[0.3em]">IdentityOS // Inventory_Module_v2.0</p>
-        <div className="h-px flex-1 mx-8 bg-gradient-to-r from-transparent via-white/20 to-transparent" />
-        <p className="text-[9px] font-mono uppercase tracking-[0.3em]">{new Date().getFullYear()}</p>
-      </footer>
+        <footer className="mt-16 flex justify-between items-center opacity-20">
+          <p className="text-[8px] font-mono uppercase tracking-[0.5em]">IDENTITYOS // INVENTORY_SUBSYSTEM</p>
+          <div className="h-px flex-1 mx-12 bg-gradient-to-r from-transparent via-white to-transparent" />
+          <p className="text-[8px] font-mono uppercase tracking-[0.5em]">{new Date().getFullYear()}</p>
+        </footer>
+      </div>
     </div>
   );
 }
